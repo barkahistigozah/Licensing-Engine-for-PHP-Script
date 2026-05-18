@@ -1,0 +1,49 @@
+{
+  "name": "leps-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun node_modules/next/dist/bin/next dev",
+    "build": "bun node_modules/next/dist/bin/next build",
+    "start": "bun node_modules/next/dist/bin/next start",
+    "lint": "bun node_modules/eslint/bin/eslint.js .",
+    "db:generate": "bun node_modules/prisma/build/index.js generate",
+    "db:migrate": "bun node_modules/prisma/build/index.js migrate dev --name init",
+    "db:seed": "bun prisma/seed.ts"
+  },
+  "dependencies": {
+    "@better-auth/prisma-adapter": "^1.6.11",
+    "@prisma/client": "6.19.0",
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-dropdown-menu": "latest",
+    "@radix-ui/react-label": "latest",
+    "@radix-ui/react-select": "latest",
+    "@radix-ui/react-separator": "latest",
+    "@radix-ui/react-slot": "latest",
+    "@radix-ui/react-switch": "latest",
+    "@radix-ui/react-tabs": "latest",
+    "@tanstack/react-table": "latest",
+    "better-auth": "^1.6.11",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "lucide-react": "latest",
+    "next": "15",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwind-merge": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "autoprefixer": "latest",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "15",
+    "postcss": "latest",
+    "prisma": "6.19.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.2"
+  }
+}
