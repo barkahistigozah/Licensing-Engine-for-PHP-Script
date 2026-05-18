@@ -148,8 +148,8 @@ ADMIN_PASSWORD="admin"
 Redis optional untuk local:
 
 ```env
-UPSTASH_REDIS_REST_URL=""
-UPSTASH_REDIS_REST_TOKEN=""
+KV_REST_API_URL=""
+KV_REST_API_TOKEN=""
 ```
 
 Jika Redis kosong, aplikasi tetap berjalan. API akan menggunakan database dan fallback in-memory untuk rate limit selama proses server lokal aktif.
@@ -206,7 +206,26 @@ Redis digunakan untuk:
 - rate limit request verifikasi publik
 - purge cache ketika admin mengubah license
 
-Di production, gunakan Upstash Redis. Ambil value berikut dari dashboard Upstash atau Vercel Marketplace:
+Di production, gunakan Upstash Redis. Jika kamu connect Redis lewat Vercel Marketplace, Vercel biasanya membuat env berikut secara otomatis:
+
+```env
+KV_REST_API_URL="https://..."
+KV_REST_API_TOKEN="..."
+KV_REST_API_READ_ONLY_TOKEN="..."
+KV_URL="..."
+REDIS_URL="..."
+```
+
+Aplikasi ini memakai:
+
+```env
+KV_REST_API_URL
+KV_REST_API_TOKEN
+```
+
+`KV_REST_API_READ_ONLY_TOKEN`, `KV_URL`, dan `REDIS_URL` boleh tetap ada, tetapi tidak dipakai oleh aplikasi ini. Kita butuh token write karena API melakukan `SET`, `DEL`, `INCR`, dan `EXPIRE`.
+
+Jika kamu setup langsung dari dashboard Upstash, aplikasi juga mendukung nama env klasik:
 
 ```env
 UPSTASH_REDIS_REST_URL="https://..."
@@ -306,6 +325,8 @@ ADMIN_PASSWORD="password-awal-yang-kuat"
 UPSTASH_REDIS_REST_URL="https://..."
 UPSTASH_REDIS_REST_TOKEN="..."
 ```
+
+Jika Redis kamu berasal dari Vercel Marketplace dan env yang muncul adalah `KV_REST_API_URL` dan `KV_REST_API_TOKEN`, kamu tidak perlu menambahkan `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN`.
 
 Gunakan Neon PostgreSQL untuk database production dan Upstash Redis dari Vercel Marketplace atau dashboard Upstash.
 
@@ -409,4 +430,3 @@ Project ini sudah memiliki:
 - Prisma migration
 - seeder admin
 - production build config
-
