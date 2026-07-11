@@ -77,6 +77,7 @@ Health response tidak mengembalikan URL, credential, stack, atau nama host inter
 - Login gagal menampilkan satu pesan aman tanpa membedakan email tidak ada dan password salah.
 - Pengguna dengan session aktif yang membuka `/login` diarahkan ke `/dashboard`.
 - Password administrator minimum 12 karakter; seed menolak password yang lebih lemah.
+- Better Auth rate limiting aktif dengan database storage; email sign-in dibatasi 3 percobaan per 10 detik per client identity/IP yang ditentukan Better Auth.
 
 ### Dashboard Guard
 

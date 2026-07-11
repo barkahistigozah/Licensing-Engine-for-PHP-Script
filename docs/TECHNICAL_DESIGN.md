@@ -182,7 +182,7 @@ Page guard adalah UX boundary. Elysia guard adalah security boundary.
 
 ### 8.1 Better Auth Tables
 
-`User`, `Session`, `Account`, dan `Verification` mengikuti schema yang dihasilkan Better Auth/Prisma adapter. Field tidak dimodifikasi tanpa kebutuhan produk.
+`User`, `Session`, `Account`, `Verification`, dan `RateLimit` mengikuti schema yang dibutuhkan Better Auth/Prisma adapter. Auth rate-limit memakai database storage agar konsisten pada serverless instances; sign-in email dibatasi lebih ketat daripada endpoint auth umum.
 
 ### 8.2 License
 
