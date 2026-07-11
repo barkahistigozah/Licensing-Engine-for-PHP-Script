@@ -437,6 +437,21 @@ Urutan dibuat deterministik agar satu request menghasilkan satu primary error co
 | UI | 360/768/1024/1440 | No inaccessible controls or clipped primary content |
 | Build | Fresh database | Migration + seed + production build pass |
 
+### OWASP Top 10:2025 Verification
+
+| Category | Acceptance check |
+|---|---|
+| A01 | Semua admin endpoint mengembalikan 401 tanpa session; object ID invalid tidak membocorkan data |
+| A02 | Production headers/cookies aman; debug detail dan stack tidak muncul; missing secret menggagalkan startup |
+| A03 | Dependency dipin, lockfile committed, dependency vulnerability audit direkam |
+| A04 | Ed25519 tamper/wrong-key gagal; token plaintext tidak muncul di DB, response, atau log |
+| A05 | Injection payload pada body/search/filter tidak mengubah query atau menghasilkan executable output |
+| A06 | Abuse cases rate limit, replay freshness, cache stale, dan failure modes memiliki test |
+| A07 | Login tidak melakukan account enumeration; signup disabled; session expired ditolak |
+| A08 | Signed payload yang berubah gagal diverifikasi; migration/build hanya memakai repository artifact |
+| A09 | Security event memiliki request ID, secret tersensor, dan production alert/monitor dapat menerima event |
+| A10 | Seluruh exceptional condition menghasilkan response deterministik tanpa crash atau detail sensitif |
+
 ## 16. Definition of Done
 
 - Requirement dan acceptance checks pada dokumen ini lulus.
@@ -444,4 +459,5 @@ Urutan dibuat deterministik agar satu request menghasilkan satu primary error co
 - Tidak ada secret plaintext pada database, response, atau logs.
 - UI sesuai `UI_UX.md` dan responsive matrix.
 - Preview deployment lulus smoke test.
+- OWASP Top 10:2025 matrix memiliki evidence `PASS` atau alasan `NOT APPLICABLE`; tidak ada `FAIL` severity tinggi/kritis yang terbuka.
 - README dan environment example sesuai implementasi final.

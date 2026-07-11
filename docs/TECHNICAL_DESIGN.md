@@ -354,6 +354,7 @@ Validation error menambahkan `issues` yang aman. Stack trace, Prisma error, Redi
 
 ## 15. Security Controls
 
+- OWASP Top 10:2025 adalah baseline minimum dan bukan klaim sertifikasi formal.
 - Runtime validation pada semua input API.
 - Same-origin auth cookie.
 - Better Auth trusted origins dibatasi ke local dan production URL.
@@ -367,6 +368,23 @@ Validation error menambahkan `issues` yang aman. Stack trace, Prisma error, Redi
 - Sensitive values disensor dari logs.
 - Destructive UI action membutuhkan confirmation.
 - Server tetap melakukan authorization dan tidak mempercayai disabled UI controls.
+
+### 15.1 OWASP Top 10:2025 Mapping
+
+| Kategori | Kontrol LEPS | Evidence minimum sebelum release |
+|---|---|---|
+| **A01 Broken Access Control** | Deny-by-default pada `/api/admin/*`, session guard terpusat, object lookup scoped dan tidak mempercayai ID dari UI | Test seluruh admin endpoint tanpa session; test akses object tidak ada/invalid; tidak ada admin mutation public |
+| **A02 Security Misconfiguration** | Startup validation, trusted origins terbatas, secure cookie production, security headers, no stack trace, no debug route production | Review environment preview/production, header check, error-response check, missing-secret startup test |
+| **A03 Software Supply Chain Failures** | Exact dependency versions, committed `bun.lock`, dependency audit, dependency minimum, review migration/build scripts | Lockfile diff reviewed, dependency vulnerability audit tercatat, tidak ada dependency `latest` |
+| **A04 Cryptographic Failures** | Better Auth password handling, HMAC-SHA256 token binding, Ed25519 response signing, server-only private key, purpose-separated inputs | Sign/verify test, wrong-key test, token plaintext scan, secret redaction check |
+| **A05 Injection** | Elysia schema validation, Prisma parameterized queries, raw query hanya static, Svelte escaping, tanpa unsafe HTML | Malformed payload tests, search/filter injection strings, code scan untuk raw SQL dan unsafe HTML |
+| **A06 Insecure Design** | Rate limit, cache TTL/invalidation policy, fail-safe auth, explicit trust boundaries, derived expiry state, no shared signing secret in client | Threat/abuse case review dan tests untuk replay freshness, cache failure, DB failure, serta invalidation failure |
+| **A07 Authentication Failures** | Better Auth, signup disabled, password minimum 12, safe login error, secure session cookie, auth rate limiting | Invalid-login tests, account-enumeration check, expired-session test, brute-force/rate-limit check |
+| **A08 Software or Data Integrity Failures** | Lockfile integrity, reviewed migrations, Ed25519 signed authorization payload, controlled deployment pipeline, no runtime plugin loading | Fresh migration/build evidence, signature tamper test, deployment artifact berasal dari reviewed commit |
+| **A09 Security Logging and Alerting Failures** | Request ID, structured safe logs, auth/rate-limit/5xx events, no secret logging, production monitoring threshold | Log redaction test, sample security events terlihat di Vercel logs, alert/monitor destination dan threshold terdokumentasi |
+| **A10 Mishandling of Exceptional Conditions** | Central error handler, deterministic error model, timeouts, explicit Redis/PostgreSQL failure policy, no swallowed security failure | Tests untuk malformed input, timeout, Redis down, DB down, audit failure, cache purge failure, dan startup failure |
+
+Setiap implementation batch harus menyebut kategori OWASP yang disentuh dan meninggalkan verification evidence. Batch global verification meninjau seluruh matriks serta mencatat status `PASS`, `FAIL`, atau `NOT APPLICABLE` dengan alasan.
 
 ## 16. Observability
 
@@ -447,3 +465,4 @@ Startup production harus gagal jelas bila database, auth secret, crypto keys, at
 - [Better Auth Elysia handler](https://better-auth.com/docs/installation)
 - [Vercel Bun runtime status](https://vercel.com/docs/functions/runtimes/bun)
 - [Node.js Web Crypto Ed25519](https://nodejs.org/api/webcrypto.html)
+- [OWASP Top 10:2025](https://owasp.org/Top10/2025/)

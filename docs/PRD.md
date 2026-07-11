@@ -146,6 +146,7 @@ Pengguna yang ingin memahami fungsi LEPS dan menuju login admin. Public web tida
 
 ### 8.1 Security
 
+- OWASP Top 10:2025 menjadi baseline minimum secure design, implementation review, dan release verification.
 - Seluruh input pada trust boundary divalidasi.
 - Password dikelola Better Auth dan tidak ditangani manual oleh LEPS.
 - Telegram bot token disimpan sebagai keyed HMAC, bukan plaintext.
@@ -154,6 +155,8 @@ Pengguna yang ingin memahami fungsi LEPS dan menuju login admin. Public web tida
 - Cookie memakai konfigurasi secure yang sesuai environment.
 - Admin endpoint menolak request tanpa session valid.
 - Error response tidak memuat stack trace, query, credential, atau secret.
+- Dependency versions dikunci dan diperiksa terhadap vulnerability yang diketahui.
+- Security-relevant authentication failure, rate limit, configuration failure, dan server error harus dapat dikorelasikan melalui request ID dan production logs.
 
 ### 8.2 Reliability
 
@@ -187,8 +190,9 @@ Rewrite dinyatakan berhasil ketika:
 4. Login, CRUD license, verification, audit log, dan logout lulus browser smoke.
 5. Verification signature dapat diverifikasi menggunakan public key terpisah.
 6. Tidak ada temuan security severity tinggi atau kritis yang belum diselesaikan.
-7. Public web, login, dan dashboard lulus QA pada 360, 768, 1024, dan 1440 px.
-8. Vercel preview terhubung ke PostgreSQL dan Redis serta lulus smoke test.
+7. Seluruh kategori OWASP Top 10:2025 telah dipetakan ke kontrol dan verification evidence; kategori yang tidak applicable harus memiliki alasan tertulis.
+8. Public web, login, dan dashboard lulus QA pada 360, 768, 1024, dan 1440 px.
+9. Vercel preview terhubung ke PostgreSQL dan Redis serta lulus smoke test.
 
 ## 10. Cutover
 
