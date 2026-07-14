@@ -260,3 +260,22 @@ runTest('Telegram failure hides secret values', function (): void {
         @unlink($cacheFile);
     }
 });
+
+runTest('default HTTP transport emits no PHP deprecations', function (): void {
+    [$config, , $cacheFile] = fixture();
+    $client = new LepsClient($config);
+    $method = new ReflectionMethod($client, 'postJson');
+    set_error_handler(static function (int $severity, string $message): never {
+        throw new ErrorException($message, 0, $severity);
+    });
+
+    try {
+        assertThrowsMessage(
+            fn () => $method->invoke($client, 'http://127.0.0.1:1', []),
+            'HTTP request failed.',
+        );
+    } finally {
+        restore_error_handler();
+        @unlink($cacheFile);
+    }
+});

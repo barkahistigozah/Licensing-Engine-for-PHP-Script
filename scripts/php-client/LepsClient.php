@@ -249,7 +249,6 @@ final class LepsClient
         $body = curl_exec($handle);
         $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         $failed = $body === false;
-        curl_close($handle);
         if ($failed) {
             throw new RuntimeException('HTTP request failed.');
         }
