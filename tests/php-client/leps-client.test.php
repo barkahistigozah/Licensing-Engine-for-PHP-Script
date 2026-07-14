@@ -206,3 +206,57 @@ runTest('failed revalidation cannot retry before next interval', function (): vo
         @unlink($cacheFile);
     }
 });
+
+runTest('Telegram delivery authorizes once and sends once', function (): void {
+    [$config, $secretKey, $cacheFile] = fixture();
+    $now = 1_783_987_200;
+    $apiCalls = 0;
+    $telegramCalls = 0;
+    $http = function (string $url, array $payload) use (&$apiCalls, &$telegramCalls, &$now, $config, $secretKey): array {
+        if (str_starts_with($url, 'https://api.telegram.org/bot')) {
+            $telegramCalls++;
+            assertSameValue($config['telegram_chat_id'], $payload['chat_id']);
+            assertSameValue('LEPS local smoke test', $payload['text']);
+            return ['status' => 200, 'body' => '{"ok":true,"result":{"message_id":1}}'];
+        }
+
+        $apiCalls++;
+        return [
+            'status' => 200,
+            'body' => json_encode(signedAuthorization($secretKey, $config, $now, $now + 86_400), JSON_THROW_ON_ERROR),
+        ];
+    };
+
+    try {
+        $client = new LepsClient($config, $http, function () use (&$now): int { return $now; });
+        $result = $client->sendTelegramMessage('LEPS local smoke test');
+        assertSameValue(true, $result['ok']);
+        assertSameValue(1, $apiCalls);
+        assertSameValue(1, $telegramCalls);
+    } finally {
+        @unlink($cacheFile);
+    }
+});
+
+runTest('Telegram failure hides secret values', function (): void {
+    [$config, $secretKey, $cacheFile] = fixture();
+    $config['telegram_bot_token'] = 'secret-bot-token';
+    $config['telegram_chat_id'] = 'private-chat-id';
+    $now = 1_783_987_200;
+    $http = function (string $url) use (&$now, $config, $secretKey): array {
+        if (str_starts_with($url, 'https://api.telegram.org/bot')) {
+            return ['status' => 500, 'body' => '{"ok":false}'];
+        }
+        return [
+            'status' => 200,
+            'body' => json_encode(signedAuthorization($secretKey, $config, $now, $now + 86_400), JSON_THROW_ON_ERROR),
+        ];
+    };
+
+    try {
+        $client = new LepsClient($config, $http, function () use (&$now): int { return $now; });
+        assertThrowsMessage(fn () => $client->sendTelegramMessage('test'), 'Telegram delivery failed.');
+    } finally {
+        @unlink($cacheFile);
+    }
+});

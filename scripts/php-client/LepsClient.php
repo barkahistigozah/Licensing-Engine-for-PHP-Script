@@ -109,6 +109,31 @@ final class LepsClient
         }
     }
 
+    public function sendTelegramMessage(string $message): array
+    {
+        $this->authorize();
+
+        try {
+            $response = ($this->httpPost)(
+                'https://api.telegram.org/bot' . $this->config['telegram_bot_token'] . '/sendMessage',
+                [
+                    'chat_id' => $this->config['telegram_chat_id'],
+                    'text' => $message,
+                ],
+            );
+            if (($response['status'] ?? 0) !== 200 || !is_string($response['body'] ?? null)) {
+                throw new RuntimeException('request failed');
+            }
+            $result = json_decode($response['body'], true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($result) || ($result['ok'] ?? false) !== true) {
+                throw new RuntimeException('invalid response');
+            }
+            return $result;
+        } catch (Throwable) {
+            throw new RuntimeException('Telegram delivery failed.');
+        }
+    }
+
     private function validateAuthorization(array $authorization, int $now, bool $fresh): array
     {
         if (
