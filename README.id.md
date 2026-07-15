@@ -247,7 +247,6 @@ src/
   lib/components/           Primitive UI Svelte reusable
   lib/server/               Auth, crypto, environment, Prisma, Redis, dan domain logic
   routes/                   Route publik, login, dashboard, dan API bridge
-tests/                      Test API, database, domain, route, script, dan browser
 ```
 
 ## Prasyarat
@@ -346,7 +345,6 @@ Jangan pernah commit nilai yang dibuat atau mencetak secret production ke log.
 | `bun run dev`            | Menjalankan development server Vite/SvelteKit.                            |
 | `bun run build`          | Membuat Prisma Client dan production build Vercel.                        |
 | `bun run preview`        | Melihat preview dari production build yang berhasil.                      |
-| `bun test`               | Menjalankan test API, database, domain, dan route.                        |
 | `bun run check`          | Menyinkronkan SvelteKit dan menjalankan `svelte-check`.                   |
 | `bun run format:check`   | Memverifikasi format Prettier untuk file project aktif.                   |
 | `bun run db:generate`    | Membuat Prisma Client.                                                    |
@@ -361,7 +359,6 @@ Jangan pernah commit nilai yang dibuat atau mencetak secret production ke log.
 Verifikasi lokal yang direkomendasikan:
 
 ```powershell
-bun test
 bun run check
 bun run format:check
 git diff --check
@@ -455,9 +452,8 @@ MVP rewrite telah diimplementasikan dan diverifikasi secara lokal pada jalur API
 
 1. Fork repository dan buat branch yang fokus.
 2. Jaga agar perubahan selaras dengan kontrak API dan keamanan yang ada.
-3. Tambahkan regression test relevan yang paling kecil.
-4. Jalankan `bun test`, `bun run check`, `bun run format:check`, dan `git diff --check`.
-5. Buka pull request yang menjelaskan perubahan behavior, dampak keamanan, dan evidence verifikasi.
+3. Jalankan `bun run check`, `bun run format:check`, dan `git diff --check`.
+4. Buka pull request yang menjelaskan perubahan behavior, dampak keamanan, dan evidence verifikasi.
 
 Hindari refactor yang tidak berhubungan, dependency baru tanpa kebutuhan yang terbukti, atau perubahan yang mengekspos license key, token hash, session, maupun private signing material.
 

@@ -247,7 +247,6 @@ src/
   lib/components/           Reusable Svelte UI primitives
   lib/server/               Auth, crypto, environment, Prisma, Redis, and domain logic
   routes/                   Public, login, dashboard, and API bridge routes
-tests/                      API, database, domain, route, script, and browser tests
 ```
 
 ## Prerequisites
@@ -346,7 +345,6 @@ Never commit generated values or print production secrets in logs.
 | `bun run dev`            | Start the Vite/SvelteKit development server.                              |
 | `bun run build`          | Generate Prisma Client and create the Vercel production build.            |
 | `bun run preview`        | Preview a successful production build.                                    |
-| `bun test`               | Run API, database, domain, and route tests.                               |
 | `bun run check`          | Synchronize SvelteKit and run `svelte-check`.                             |
 | `bun run format:check`   | Verify Prettier formatting for active project files.                      |
 | `bun run db:generate`    | Generate Prisma Client.                                                   |
@@ -361,7 +359,6 @@ Never commit generated values or print production secrets in logs.
 Recommended local verification:
 
 ```powershell
-bun test
 bun run check
 bun run format:check
 git diff --check
@@ -455,9 +452,8 @@ The rewrite MVP is implemented and locally verified across API, database, domain
 
 1. Fork the repository and create a focused branch.
 2. Keep changes aligned with the existing API and security contracts.
-3. Add the smallest relevant regression test.
-4. Run `bun test`, `bun run check`, `bun run format:check`, and `git diff --check`.
-5. Open a pull request explaining the behavior change, security impact, and verification evidence.
+3. Run `bun run check`, `bun run format:check`, and `git diff --check`.
+4. Open a pull request explaining the behavior change, security impact, and verification evidence.
 
 Avoid unrelated refactors, new dependencies without a demonstrated need, or changes that expose license keys, token hashes, sessions, or private signing material.
 
