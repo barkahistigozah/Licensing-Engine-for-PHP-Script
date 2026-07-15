@@ -28,19 +28,19 @@ Tujuan utama redesign adalah menghilangkan kesan template AI generik. Desain har
 
 ### Brand Colors
 
-| Token | Value | Penggunaan |
-|---|---|---|
-| `--color-sand` | `#DCC9A9` | Page background, secondary surface, neutral emphasis |
-| `--color-red` | `#B83A2D` | Primary CTA, destructive emphasis, critical status |
+| Token           | Value     | Penggunaan                                                 |
+| --------------- | --------- | ---------------------------------------------------------- |
+| `--color-sand`  | `#DCC9A9` | Page background, secondary surface, neutral emphasis       |
+| `--color-red`   | `#B83A2D` | Primary CTA, destructive emphasis, critical status         |
 | `--color-green` | `#4E6851` | Sidebar, success status, solid shadow, stable system state |
 
 ### Supporting Neutrals
 
-| Token | Value | Penggunaan |
-|---|---|---|
-| `--color-ink` | `#273229` | Body text, borders, primary foreground |
-| `--color-paper` | `#FBF4E8` | Main background/surface |
-| `--color-white` | `#FFFDF8` | Elevated cards, input, table surface |
+| Token           | Value     | Penggunaan                             |
+| --------------- | --------- | -------------------------------------- |
+| `--color-ink`   | `#273229` | Body text, borders, primary foreground |
+| `--color-paper` | `#FBF4E8` | Main background/surface                |
+| `--color-white` | `#FFFDF8` | Elevated cards, input, table surface   |
 
 Supporting neutrals boleh disesuaikan sedikit ketika contrast check membutuhkan, tetapi tiga warna brand utama tidak berubah.
 
@@ -57,13 +57,13 @@ Status tidak boleh hanya memakai warna. Badge harus memuat label seperti `ACTIVE
 
 Suggested scale:
 
-| Role | Desktop | Mobile |
-|---|---:|---:|
-| Hero | clamp 48–80 px | clamp 38–52 px |
-| Page title | 32–40 px | 28–34 px |
-| Section title | 22–28 px | 20–24 px |
-| Body | 16–18 px | 16 px |
-| Small/meta | 12–14 px | 12–14 px |
+| Role          |        Desktop |         Mobile |
+| ------------- | -------------: | -------------: |
+| Hero          | clamp 48–80 px | clamp 38–52 px |
+| Page title    |       32–40 px |       28–34 px |
+| Section title |       22–28 px |       20–24 px |
+| Body          |       16–18 px |          16 px |
+| Small/meta    |       12–14 px |       12–14 px |
 
 ## 5. Shape, Border, dan Shadow
 
@@ -114,7 +114,7 @@ Suggested scale:
 
 4. **Feature Grid**
    - Domain/path binding.
-   - Redis cache/rate limit.
+   - PostgreSQL authorization dan Redis rate limit.
    - Audit attempts.
    - Suspend/expiry control.
 

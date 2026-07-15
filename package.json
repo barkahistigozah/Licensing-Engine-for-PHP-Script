@@ -16,13 +16,14 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "test": "bun test",
+    "format:check": "prettier --check README.md docs/IMPLEMENTATION_PLAN.md docs/improvement-batch-7.md package.json prisma/seed.ts src tests",
+    "test": "bun test tests/api tests/database tests/domain tests/routes",
     "postinstall": "bun run db:generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset",
+    "db:verify:test": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-test-db.ps1",
     "db:seed": "bun prisma/seed.ts"
   },
   "dependencies": {

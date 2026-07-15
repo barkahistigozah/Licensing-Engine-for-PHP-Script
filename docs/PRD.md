@@ -110,20 +110,18 @@ Pengguna yang ingin memahami fungsi LEPS dan menuju login admin. Public web tida
 - **FR-LIC-07:** Admin dapat suspend atau activate license.
 - **FR-LIC-08:** Admin dapat memperpanjang expiry.
 - **FR-LIC-09:** Admin dapat menghapus license setelah konfirmasi.
-- **FR-LIC-10:** Admin dapat melakukan purge cache manual.
-- **FR-LIC-11:** Setiap mutation license otomatis melakukan purge cache.
 - **FR-LIC-12:** Telegram bot token tidak pernah ditampilkan kembali setelah disimpan.
 
 ### 7.5 License Verification
 
 - **FR-VER-01:** API menerima license key, domain, path instalasi, Telegram bot token, dan Telegram chat ID.
 - **FR-VER-02:** API menerapkan validation dan rate limit sebelum query database.
-- **FR-VER-03:** API memakai Redis cache-aside untuk license lookup.
+- **FR-VER-03:** API selalu membaca PostgreSQL untuk license lookup.
 - **FR-VER-04:** API mengevaluasi status tersimpan, status efektif dari expiry, domain, path, dan Telegram binding.
 - **FR-VER-05:** API mengembalikan status `VALID`, `INVALID`, `SUSPENDED`, `EXPIRED`, `RATE_LIMITED`, atau `UNAVAILABLE`.
 - **FR-VER-06:** Response `VALID` ditandatangani dengan Ed25519.
 - **FR-VER-07:** Public key dapat dibagikan kepada PHP client tanpa membocorkan private key.
-- **FR-VER-08:** API menyediakan header cache dan rate-limit yang terdokumentasi.
+- **FR-VER-08:** API menyediakan header `X-LEPS-Cache: BYPASS` dan rate-limit yang terdokumentasi.
 
 ### 7.6 Audit Logs
 
@@ -161,10 +159,8 @@ Pengguna yang ingin memahami fungsi LEPS dan menuju login admin. Public web tida
 ### 8.2 Reliability
 
 - PostgreSQL adalah source of truth.
-- Redis adalah cache dan rate-limit store, bukan source of truth.
-- Cache failure dapat fallback ke PostgreSQL.
-- Database failure dengan cache hit tetap dapat melayani verification.
-- Database failure dengan cache miss menghasilkan `503`.
+- Redis adalah rate-limit dan readiness dependency, bukan source of truth.
+- Database failure saat verification menghasilkan `503`.
 
 ### 8.3 Maintainability
 
@@ -204,10 +200,10 @@ Rewrite dinyatakan berhasil ketika:
 
 ## 11. Risiko
 
-| Risiko | Mitigasi |
-|---|---|
-| Rewrite memutus fitur yang sudah bekerja | Acceptance criteria dan batch verification menjaga parity |
-| Integrasi SvelteKit–Elysia menambah boundary | Satu catch-all route dan satu Elysia app saja |
-| Secret crypto salah konfigurasi | Startup validation dan documented key-generation procedure |
-| Rate limiter Redis tidak tersedia | Memory fallback hanya local; production mengembalikan 503 |
-| UI responsive rusak pada table/dialog | Viewport matrix dan browser smoke pada batch final |
+| Risiko                                       | Mitigasi                                                   |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| Rewrite memutus fitur yang sudah bekerja     | Acceptance criteria dan batch verification menjaga parity  |
+| Integrasi SvelteKit–Elysia menambah boundary | Satu catch-all route dan satu Elysia app saja              |
+| Secret crypto salah konfigurasi              | Startup validation dan documented key-generation procedure |
+| Rate limiter Redis tidak tersedia            | Memory fallback hanya local; production mengembalikan 503  |
+| UI responsive rusak pada table/dialog        | Viewport matrix dan browser smoke pada batch final         |

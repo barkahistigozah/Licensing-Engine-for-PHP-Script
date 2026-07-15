@@ -17,28 +17,27 @@
 
 ### Pages
 
-| Method | Path | Access | Fungsi |
-|---|---|---|---|
-| GET | `/` | Public | Product Story public web |
-| GET | `/login` | Public | Admin login |
-| GET | `/dashboard` | Admin | Overview |
-| GET | `/dashboard/licenses` | Admin | License management |
-| GET | `/dashboard/audit-logs` | Admin | Audit logs |
+| Method | Path                    | Access | Fungsi                   |
+| ------ | ----------------------- | ------ | ------------------------ |
+| GET    | `/`                     | Public | Product Story public web |
+| GET    | `/login`                | Public | Admin login              |
+| GET    | `/dashboard`            | Admin  | Overview                 |
+| GET    | `/dashboard/licenses`   | Admin  | License management       |
+| GET    | `/dashboard/audit-logs` | Admin  | Audit logs               |
 
 ### API
 
-| Method | Path | Access |
-|---|---|---|
-| GET | `/api/health` | Public |
-| GET/POST | `/api/auth/*` | Better Auth |
-| GET | `/api/admin/auth/me` | Admin |
-| GET | `/api/admin/stats` | Admin |
-| GET/POST | `/api/admin/licenses` | Admin |
-| GET/PATCH/DELETE | `/api/admin/licenses/:id` | Admin |
-| POST | `/api/admin/licenses/:id/extend` | Admin |
-| POST | `/api/admin/licenses/:id/purge-cache` | Admin |
-| GET | `/api/admin/audit-logs` | Admin |
-| POST | `/api/v1/license/verify` | Public |
+| Method           | Path                             | Access      |
+| ---------------- | -------------------------------- | ----------- |
+| GET              | `/api/health`                    | Public      |
+| GET/POST         | `/api/auth/*`                    | Better Auth |
+| GET              | `/api/admin/auth/me`             | Admin       |
+| GET              | `/api/admin/stats`               | Admin       |
+| GET/POST         | `/api/admin/licenses`            | Admin       |
+| GET/PATCH/DELETE | `/api/admin/licenses/:id`        | Admin       |
+| POST             | `/api/admin/licenses/:id/extend` | Admin       |
+| GET              | `/api/admin/audit-logs`          | Admin       |
+| POST             | `/api/v1/license/verify`         | Public      |
 
 ## 3. Health Endpoint
 
@@ -120,13 +119,13 @@ Definition:
 
 Query:
 
-| Field | Default | Constraint |
-|---|---:|---|
-| `page` | 1 | Integer ≥ 1 |
-| `limit` | 20 | Integer 1–100 |
-| `search` | kosong | Maksimum 200 karakter |
-| `status` | kosong | Effective status `ACTIVE`, `SUSPENDED`, `EXPIRED` |
-| `sort` | `created_at_desc` | Whitelist value |
+| Field    |           Default | Constraint                                        |
+| -------- | ----------------: | ------------------------------------------------- |
+| `page`   |                 1 | Integer ≥ 1                                       |
+| `limit`  |                20 | Integer 1–100                                     |
+| `search` |            kosong | Maksimum 200 karakter                             |
+| `status` |            kosong | Effective status `ACTIVE`, `SUSPENDED`, `EXPIRED` |
+| `sort`   | `created_at_desc` | Whitelist value                                   |
 
 Response `200`:
 
@@ -211,7 +210,7 @@ Rules:
 
 - Token yang tidak dikirim mempertahankan hash lama.
 - Token string kosong ditolak dan tidak berarti hapus.
-- Update domain/path/chat/token/status/expiry melakukan cache purge.
+- Update domain/path/chat/token/status/expiry langsung menjadi sumber keputusan verification berikutnya.
 - Response mengembalikan state setelah update tanpa secret.
 
 ## 9. Extend, Purge, dan Delete
@@ -227,18 +226,13 @@ Request:
 - `days` integer 1–365.
 - Perpanjangan dihitung dari nilai terbesar antara waktu sekarang dan expiry saat ini.
 - Endpoint tidak otomatis mengubah `SUSPENDED` menjadi `ACTIVE`.
-- Cache dipurge setelah update.
-
-### `POST /api/admin/licenses/:id/purge-cache`
-
-- Menghapus key `lic:<license_key>`.
-- Idempotent; cache yang tidak ada tetap menghasilkan success.
+- PostgreSQL menjadi sumber keputusan verification berikutnya.
 
 ### `DELETE /api/admin/licenses/:id`
 
 - UI wajib meminta confirmation.
 - Audit history dipertahankan; relasi log berubah menjadi `licenseId: null` melalui `onDelete: SetNull`.
-- Cache dipurge setelah delete database berhasil. Kegagalan invalidation mengembalikan `503 ERR_CACHE_INVALIDATION_FAILED`; delete database tetap tercatat sebagai committed.
+- Delete database langsung berlaku pada verification berikutnya.
 - Response `204` tanpa body.
 
 ## 10. Audit Log Listing
@@ -247,14 +241,14 @@ Request:
 
 Query:
 
-| Field | Default | Constraint |
-|---|---:|---|
-| `page` | 1 | Integer ≥ 1 |
-| `limit` | 50 | Integer 1–100 |
-| `status` | kosong | Known result code |
-| `domain` | kosong | Maksimum 253 karakter |
-| `date_from` | kosong | ISO timestamp |
-| `date_to` | kosong | ISO timestamp dan ≥ `date_from` |
+| Field       | Default | Constraint                      |
+| ----------- | ------: | ------------------------------- |
+| `page`      |       1 | Integer ≥ 1                     |
+| `limit`     |      50 | Integer 1–100                   |
+| `status`    |  kosong | Known result code               |
+| `domain`    |  kosong | Maksimum 253 karakter           |
+| `date_from` |  kosong | ISO timestamp                   |
+| `date_to`   |  kosong | ISO timestamp dan ≥ `date_from` |
 
 Response item:
 
@@ -314,7 +308,7 @@ HTTP `200`:
   "signature_algorithm": "Ed25519",
   "signed_payload": "base64url-encoded-utf8-json",
   "signature": "base64url-signature",
-  "cache": "HIT"
+  "cache": "BYPASS"
 }
 ```
 
@@ -324,16 +318,16 @@ PHP client harus memverifikasi signature, memastikan binding pada signed payload
 
 ### Domain Results
 
-| Result | HTTP | Error Code |
-|---|---:|---|
-| License tidak ditemukan | 403 | `ERR_LICENSE_NOT_FOUND` |
-| Suspended | 403 | `ERR_LICENSE_REVOKED` |
-| Expired | 403 | `ERR_LICENSE_EXPIRED` |
-| Domain/path mismatch | 403 | `ERR_DOMAIN_PATH_MISMATCH` |
-| Telegram mismatch | 403 | `ERR_TELEGRAM_BINDING_MISMATCH` |
-| Rate limited | 429 | `ERR_RATE_LIMITED` |
-| Store unavailable | 503 | `ERR_LICENSE_STORE_UNAVAILABLE` |
-| Rate limiter unavailable | 503 | `ERR_RATE_LIMITER_UNAVAILABLE` |
+| Result                   | HTTP | Error Code                      |
+| ------------------------ | ---: | ------------------------------- |
+| License tidak ditemukan  |  403 | `ERR_LICENSE_NOT_FOUND`         |
+| Suspended                |  403 | `ERR_LICENSE_REVOKED`           |
+| Expired                  |  403 | `ERR_LICENSE_EXPIRED`           |
+| Domain/path mismatch     |  403 | `ERR_DOMAIN_PATH_MISMATCH`      |
+| Telegram mismatch        |  403 | `ERR_TELEGRAM_BINDING_MISMATCH` |
+| Rate limited             |  429 | `ERR_RATE_LIMITED`              |
+| Store unavailable        |  503 | `ERR_LICENSE_STORE_UNAVAILABLE` |
+| Rate limiter unavailable |  503 | `ERR_RATE_LIMITER_UNAVAILABLE`  |
 
 Invalid response tidak ditandatangani.
 
@@ -414,44 +408,40 @@ Urutan dibuat deterministik agar satu request menghasilkan satu primary error co
 
 ## 15. Verification Matrix
 
-| Area | Check | Expected |
-|---|---|---|
-| Auth | Invalid credentials | Safe error, no account enumeration |
-| Auth | Unauthorized dashboard | Redirect login |
-| Admin API | Missing session | 401 JSON |
-| License | Create valid | 201, key generated, token hidden |
-| License | Invalid domain/path | 400 validation |
-| License | Update | Persisted and cache purged |
-| License | Extend | Correct date and cache purge |
-| License | Delete | 204, cache purged |
-| Verify | Cache miss | DB lookup, cache set, MISS header |
-| Verify | Cache hit | No DB lookup required, HIT header |
-| Verify | Unknown key | 403 and audit with nullable license |
-| Verify | Suspended/expired | Deterministic 403 code |
-| Verify | Binding mismatch | Deterministic 403 code |
-| Verify | Valid | Ed25519 signature verifies |
-| Failure | DB down + cache hit | Result from cache |
-| Failure | DB down + cache miss | 503 |
-| Failure | Redis cache down | DB fallback |
-| Failure | Redis rate limit down production | 503 |
-| Failure | License mutation cache purge fails | DB state committed, 503 explicit, retry purge available |
-| UI | 360/768/1024/1440 | No inaccessible controls or clipped primary content |
-| Build | Fresh database | Migration + seed + production build pass |
+| Area      | Check                            | Expected                                            |
+| --------- | -------------------------------- | --------------------------------------------------- |
+| Auth      | Invalid credentials              | Safe error, no account enumeration                  |
+| Auth      | Unauthorized dashboard           | Redirect login                                      |
+| Admin API | Missing session                  | 401 JSON                                            |
+| License   | Create valid                     | 201, key generated, token hidden                    |
+| License   | Invalid domain/path              | 400 validation                                      |
+| License   | Update                           | Persisted and immediately authoritative             |
+| License   | Extend                           | Correct date and immediately authoritative          |
+| License   | Delete                           | 204 and immediately unavailable                     |
+| Verify    | Current license                  | Fresh PostgreSQL lookup, BYPASS header              |
+| Verify    | Unknown key                      | 403 and audit with nullable license                 |
+| Verify    | Suspended/expired                | Deterministic 403 code                              |
+| Verify    | Binding mismatch                 | Deterministic 403 code                              |
+| Verify    | Valid                            | Ed25519 signature verifies                          |
+| Failure   | DB down                          | 503                                                 |
+| Failure   | Redis rate limit down production | 503                                                 |
+| UI        | 360/768/1024/1440                | No inaccessible controls or clipped primary content |
+| Build     | Fresh database                   | Migration + seed + production build pass            |
 
 ### OWASP Top 10:2025 Verification
 
-| Category | Acceptance check |
-|---|---|
-| A01 | Semua admin endpoint mengembalikan 401 tanpa session; object ID invalid tidak membocorkan data |
-| A02 | Production headers/cookies aman; debug detail dan stack tidak muncul; missing secret menggagalkan startup |
-| A03 | Dependency dipin, lockfile committed, dependency vulnerability audit direkam |
-| A04 | Ed25519 tamper/wrong-key gagal; token plaintext tidak muncul di DB, response, atau log |
-| A05 | Injection payload pada body/search/filter tidak mengubah query atau menghasilkan executable output |
-| A06 | Abuse cases rate limit, replay freshness, cache stale, dan failure modes memiliki test |
-| A07 | Login tidak melakukan account enumeration; signup disabled; session expired ditolak |
-| A08 | Signed payload yang berubah gagal diverifikasi; migration/build hanya memakai repository artifact |
-| A09 | Security event memiliki request ID, secret tersensor, dan production alert/monitor dapat menerima event |
-| A10 | Seluruh exceptional condition menghasilkan response deterministik tanpa crash atau detail sensitif |
+| Category | Acceptance check                                                                                          |
+| -------- | --------------------------------------------------------------------------------------------------------- |
+| A01      | Semua admin endpoint mengembalikan 401 tanpa session; object ID invalid tidak membocorkan data            |
+| A02      | Production headers/cookies aman; debug detail dan stack tidak muncul; missing secret menggagalkan startup |
+| A03      | Dependency dipin, lockfile committed, dependency vulnerability audit direkam                              |
+| A04      | Ed25519 tamper/wrong-key gagal; token plaintext tidak muncul di DB, response, atau log                    |
+| A05      | Injection payload pada body/search/filter tidak mengubah query atau menghasilkan executable output        |
+| A06      | Abuse cases rate limit, replay freshness, stale authorization, dan failure modes memiliki test            |
+| A07      | Login tidak melakukan account enumeration; signup disabled; session expired ditolak                       |
+| A08      | Signed payload yang berubah gagal diverifikasi; migration/build hanya memakai repository artifact         |
+| A09      | Security event memiliki request ID, secret tersensor, dan production alert/monitor dapat menerima event   |
+| A10      | Seluruh exceptional condition menghasilkan response deterministik tanpa crash atau detail sensitif        |
 
 ## 16. Definition of Done
 

@@ -10,7 +10,6 @@ datasource db {
 enum LicenseStatus {
   ACTIVE
   SUSPENDED
-  EXPIRED
 }
 
 model User {
@@ -40,6 +39,7 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
+  @@index([userId])
   @@map("session")
 }
 
@@ -59,6 +59,7 @@ model Account {
   createdAt             DateTime
   updatedAt             DateTime
 
+  @@index([userId])
   @@map("account")
 }
 
@@ -73,35 +74,45 @@ model Verification {
   @@map("verification")
 }
 
-model License {
-  id               String            @id @default(uuid())
-  licenseKey       String            @unique
-  allowedDomain    String
-  allowedPath      String
-  telegramBotToken String
-  telegramChatId   String
-  status           LicenseStatus     @default(ACTIVE)
-  expiresAt        DateTime
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  logs             VerificationLog[]
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
 
-  @@index([licenseKey])
+  @@map("rateLimit")
+}
+
+model License {
+  id                   String            @id @default(uuid())
+  licenseKey           String            @unique
+  allowedDomain        String
+  allowedPath          String
+  telegramBotTokenHash String
+  telegramChatId       String
+  status               LicenseStatus     @default(ACTIVE)
+  expiresAt            DateTime
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  logs                 VerificationLog[]
+
   @@index([allowedDomain])
-  @@index([status])
+  @@index([status, expiresAt])
 }
 
 model VerificationLog {
-  id           String   @id @default(uuid())
-  licenseId    String
-  license      License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
-  requestIp    String
-  requestHost  String
-  requestPath  String
-  statusResult String
-  createdAt    DateTime @default(now())
+  id                    String   @id @default(uuid())
+  licenseId             String?
+  license               License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+  licenseKeyFingerprint String
+  requestIp             String
+  requestHost           String
+  requestPath           String
+  statusResult          String
+  createdAt             DateTime @default(now())
 
   @@index([licenseId])
-  @@index([statusResult])
+  @@index([licenseKeyFingerprint])
+  @@index([statusResult, createdAt])
   @@index([createdAt])
 }

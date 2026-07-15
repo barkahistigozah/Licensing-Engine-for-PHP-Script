@@ -18,27 +18,27 @@ flowchart LR
     Elysia --> License["License domain services"]
     Auth --> Prisma["Prisma ORM"]
     License --> Prisma
-    License --> Redis["Upstash Redis REST"]
+    License --> Redis["Upstash Redis rate limit"]
     Prisma --> Postgres["PostgreSQL"]
 ```
 
 ## 2. Stack
 
-| Area | Pilihan |
-|---|---|
-| Frontend | Svelte 5 + SvelteKit |
-| Backend | Elysia |
-| API client | Eden Treaty |
-| Authentication | Better Auth |
-| ORM | Prisma |
-| Database | PostgreSQL |
-| Cache/rate limit | Upstash Redis REST |
-| Validation | Elysia schema (`t`) pada API boundary |
-| Package manager/local runtime | Bun |
-| Production runtime | Vercel Node.js |
-| Deployment adapter | `@sveltejs/adapter-vercel` |
-| Test runner | `bun:test` |
-| Browser smoke | Playwright |
+| Area                          | Pilihan                               |
+| ----------------------------- | ------------------------------------- |
+| Frontend                      | Svelte 5 + SvelteKit                  |
+| Backend                       | Elysia                                |
+| API client                    | Eden Treaty                           |
+| Authentication                | Better Auth                           |
+| ORM                           | Prisma                                |
+| Database                      | PostgreSQL                            |
+| Rate limit/readiness          | Upstash Redis REST                    |
+| Validation                    | Elysia schema (`t`) pada API boundary |
+| Package manager/local runtime | Bun                                   |
+| Production runtime            | Vercel Node.js                        |
+| Deployment adapter            | `@sveltejs/adapter-vercel`            |
+| Test runner                   | `bun:test`                            |
+| Browser smoke                 | Playwright                            |
 
 Dependency versions harus dipin secara eksplisit dan dikunci melalui `bun.lock`. Nilai `latest` tidak boleh dipakai di `package.json`.
 
@@ -149,10 +149,9 @@ Domain functions menerima data biasa dan tidak membaca request framework secara 
 
 ### 5.5 Redis
 
-- Cache license record.
 - Fixed-window rate limiting untuk public verification.
-- Cache invalidation setelah mutation license.
-- Tidak menyimpan session atau source-of-truth data.
+- Readiness check pada production.
+- Tidak menyimpan session, license record, atau source-of-truth data.
 
 ## 6. Elysia Mount
 
@@ -186,33 +185,33 @@ Page guard adalah UX boundary. Elysia guard adalah security boundary.
 
 ### 8.2 License
 
-| Field | Tipe | Catatan |
-|---|---|---|
-| `id` | UUID | Primary key |
-| `licenseKey` | String unique | Dihasilkan server |
-| `allowedDomain` | String | Hostname normalized |
-| `allowedPath` | String | Absolute normalized path |
-| `telegramBotTokenHash` | String | HMAC-SHA256, token tidak disimpan plaintext |
-| `telegramChatId` | String | Exact normalized identifier |
-| `status` | Enum | Hanya `ACTIVE`, `SUSPENDED`; `EXPIRED` merupakan status efektif turunan |
-| `expiresAt` | DateTime | UTC |
-| `createdAt` | DateTime | UTC |
-| `updatedAt` | DateTime | UTC |
+| Field                  | Tipe          | Catatan                                                                 |
+| ---------------------- | ------------- | ----------------------------------------------------------------------- |
+| `id`                   | UUID          | Primary key                                                             |
+| `licenseKey`           | String unique | Dihasilkan server                                                       |
+| `allowedDomain`        | String        | Hostname normalized                                                     |
+| `allowedPath`          | String        | Absolute normalized path                                                |
+| `telegramBotTokenHash` | String        | HMAC-SHA256, token tidak disimpan plaintext                             |
+| `telegramChatId`       | String        | Exact normalized identifier                                             |
+| `status`               | Enum          | Hanya `ACTIVE`, `SUSPENDED`; `EXPIRED` merupakan status efektif turunan |
+| `expiresAt`            | DateTime      | UTC                                                                     |
+| `createdAt`            | DateTime      | UTC                                                                     |
+| `updatedAt`            | DateTime      | UTC                                                                     |
 
 Status efektif dievaluasi secara deterministik: `SUSPENDED` menang terlebih dahulu, kemudian `EXPIRED` bila `expiresAt <= now`, selain itu `ACTIVE`. Dengan demikian database tidak menyimpan status `EXPIRED` yang dapat drift dari waktu expiry.
 
 ### 8.3 VerificationLog
 
-| Field | Tipe | Catatan |
-|---|---|---|
-| `id` | UUID | Primary key |
-| `licenseId` | UUID nullable | Null ketika license tidak ditemukan atau license dihapus |
-| `licenseKeyFingerprint` | String | HMAC-SHA256 terpotong untuk korelasi; bukan prefix key plaintext |
-| `requestIp` | String | Client IP hasil trusted proxy parsing |
-| `requestHost` | String | Normalized hostname |
-| `requestPath` | String | Normalized path |
-| `statusResult` | String | Result code |
-| `createdAt` | DateTime | UTC |
+| Field                   | Tipe          | Catatan                                                          |
+| ----------------------- | ------------- | ---------------------------------------------------------------- |
+| `id`                    | UUID          | Primary key                                                      |
+| `licenseId`             | UUID nullable | Null ketika license tidak ditemukan atau license dihapus         |
+| `licenseKeyFingerprint` | String        | HMAC-SHA256 terpotong untuk korelasi; bukan prefix key plaintext |
+| `requestIp`             | String        | Client IP hasil trusted proxy parsing                            |
+| `requestHost`           | String        | Normalized hostname                                              |
+| `requestPath`           | String        | Normalized path                                                  |
+| `statusResult`          | String        | Result code                                                      |
+| `createdAt`             | DateTime      | UTC                                                              |
 
 Relasi ke `License` memakai `onDelete: SetNull` agar audit history tetap tersimpan setelah license dihapus. Index minimum: `licenseId`, `statusResult`, `createdAt`, dan `licenseKeyFingerprint`. Index tambahan hanya ditambah berdasarkan query yang benar-benar digunakan.
 
@@ -249,13 +248,10 @@ flowchart TD
     A["POST /api/v1/license/verify"] --> B["Validate and normalize"]
     B --> C["Redis rate limit"]
     C -->|Rejected| R429["429 RATE_LIMITED"]
-    C -->|Allowed| D["Redis license lookup"]
-    D -->|Hit| E["Evaluate cached record"]
-    D -->|Miss| F["Prisma lookup"]
+    C -->|Allowed| F["Prisma license lookup"]
     F -->|DB unavailable| R503["503 UNAVAILABLE"]
     F -->|Not found| G["Audit INVALID"]
-    F -->|Found| H["Cache record"]
-    H --> E
+    F -->|Found| E["Evaluate current record"]
     E --> I["Audit result"]
     I -->|Valid| J["Canonical payload + Ed25519 signature"]
     I -->|Invalid state/binding| K["403 result"]
@@ -303,19 +299,10 @@ issued_at
 ### 12.1 Keys
 
 ```text
-lic:<license_key>
 rl:verify:<client_ip>
 ```
 
-### 12.2 Cache
-
-- TTL default license cache: 5 menit untuk membatasi stale authorization bila invalidation gagal.
-- Cache hanya memuat field yang dibutuhkan verification, termasuk Telegram token hash.
-- Create/update/suspend/activate/extend/delete selalu menghapus cache key.
-- Kegagalan invalidation setelah database mutation menghasilkan error eksplisit dan UI menyediakan retry; database mutation yang sudah committed tidak disamarkan sebagai rollback.
-- Manual purge endpoint tetap tersedia.
-
-### 12.3 Rate Limit
+### 12.2 Rate Limit
 
 - Fixed window: 60 request per 60 detik per IP sebagai default awal.
 - Redis `INCR` + `EXPIRE` atau atomic equivalent.
@@ -338,19 +325,16 @@ Validation error menambahkan `issues` yang aman. Stack trace, Prisma error, Redi
 
 ## 14. Error Policy
 
-| Kondisi | Perilaku |
-|---|---|
-| Payload invalid | `400 VALIDATION_ERROR` |
-| Session admin tidak ada | `401 UNAUTHORIZED` |
-| Admin resource tidak ditemukan | `404 NOT_FOUND` |
-| License invalid/suspended/expired | `403` dengan domain status |
-| Rate limit terlampaui | `429 RATE_LIMITED` |
-| Redis cache gagal | Query PostgreSQL |
-| Redis rate limiter production gagal | `503 UNAVAILABLE` |
-| Database gagal + cache hit | Evaluate cache |
-| Database gagal + cache miss | `503 UNAVAILABLE` |
-| Audit write gagal | Log error, pertahankan hasil verification |
-| Cache invalidation mutation gagal | `503 ERR_CACHE_INVALIDATION_FAILED`, state database tetap menjadi truth, UI menawarkan retry purge |
+| Kondisi                             | Perilaku                                  |
+| ----------------------------------- | ----------------------------------------- |
+| Payload invalid                     | `400 VALIDATION_ERROR`                    |
+| Session admin tidak ada             | `401 UNAUTHORIZED`                        |
+| Admin resource tidak ditemukan      | `404 NOT_FOUND`                           |
+| License invalid/suspended/expired   | `403` dengan domain status                |
+| Rate limit terlampaui               | `429 RATE_LIMITED`                        |
+| Redis rate limiter production gagal | `503 UNAVAILABLE`                         |
+| Database verification gagal         | `503 UNAVAILABLE`                         |
+| Audit write gagal                   | Log error, pertahankan hasil verification |
 
 ## 15. Security Controls
 
@@ -371,18 +355,18 @@ Validation error menambahkan `issues` yang aman. Stack trace, Prisma error, Redi
 
 ### 15.1 OWASP Top 10:2025 Mapping
 
-| Kategori | Kontrol LEPS | Evidence minimum sebelum release |
-|---|---|---|
-| **A01 Broken Access Control** | Deny-by-default pada `/api/admin/*`, session guard terpusat, object lookup scoped dan tidak mempercayai ID dari UI | Test seluruh admin endpoint tanpa session; test akses object tidak ada/invalid; tidak ada admin mutation public |
-| **A02 Security Misconfiguration** | Startup validation, trusted origins terbatas, secure cookie production, security headers, no stack trace, no debug route production | Review environment preview/production, header check, error-response check, missing-secret startup test |
-| **A03 Software Supply Chain Failures** | Exact dependency versions, committed `bun.lock`, dependency audit, dependency minimum, review migration/build scripts | Lockfile diff reviewed, dependency vulnerability audit tercatat, tidak ada dependency `latest` |
-| **A04 Cryptographic Failures** | Better Auth password handling, HMAC-SHA256 token binding, Ed25519 response signing, server-only private key, purpose-separated inputs | Sign/verify test, wrong-key test, token plaintext scan, secret redaction check |
-| **A05 Injection** | Elysia schema validation, Prisma parameterized queries, raw query hanya static, Svelte escaping, tanpa unsafe HTML | Malformed payload tests, search/filter injection strings, code scan untuk raw SQL dan unsafe HTML |
-| **A06 Insecure Design** | Rate limit, cache TTL/invalidation policy, fail-safe auth, explicit trust boundaries, derived expiry state, no shared signing secret in client | Threat/abuse case review dan tests untuk replay freshness, cache failure, DB failure, serta invalidation failure |
-| **A07 Authentication Failures** | Better Auth, signup disabled, password minimum 12, safe login error, secure session cookie, auth rate limiting | Invalid-login tests, account-enumeration check, expired-session test, brute-force/rate-limit check |
-| **A08 Software or Data Integrity Failures** | Lockfile integrity, reviewed migrations, Ed25519 signed authorization payload, controlled deployment pipeline, no runtime plugin loading | Fresh migration/build evidence, signature tamper test, deployment artifact berasal dari reviewed commit |
-| **A09 Security Logging and Alerting Failures** | Request ID, structured safe logs, auth/rate-limit/5xx events, no secret logging, production monitoring threshold | Log redaction test, sample security events terlihat di Vercel logs, alert/monitor destination dan threshold terdokumentasi |
-| **A10 Mishandling of Exceptional Conditions** | Central error handler, deterministic error model, timeouts, explicit Redis/PostgreSQL failure policy, no swallowed security failure | Tests untuk malformed input, timeout, Redis down, DB down, audit failure, cache purge failure, dan startup failure |
+| Kategori                                       | Kontrol LEPS                                                                                                                                    | Evidence minimum sebelum release                                                                                           |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **A01 Broken Access Control**                  | Deny-by-default pada `/api/admin/*`, session guard terpusat, object lookup scoped dan tidak mempercayai ID dari UI                              | Test seluruh admin endpoint tanpa session; test akses object tidak ada/invalid; tidak ada admin mutation public            |
+| **A02 Security Misconfiguration**              | Startup validation, trusted origins terbatas, secure cookie production, security headers, no stack trace, no debug route production             | Review environment preview/production, header check, error-response check, missing-secret startup test                     |
+| **A03 Software Supply Chain Failures**         | Exact dependency versions, committed `bun.lock`, dependency audit, dependency minimum, review migration/build scripts                           | Lockfile diff reviewed, dependency vulnerability audit tercatat, tidak ada dependency `latest`                             |
+| **A04 Cryptographic Failures**                 | Better Auth password handling, HMAC-SHA256 token binding, Ed25519 response signing, server-only private key, purpose-separated inputs           | Sign/verify test, wrong-key test, token plaintext scan, secret redaction check                                             |
+| **A05 Injection**                              | Elysia schema validation, Prisma parameterized queries, raw query hanya static, Svelte escaping, tanpa unsafe HTML                              | Malformed payload tests, search/filter injection strings, code scan untuk raw SQL dan unsafe HTML                          |
+| **A06 Insecure Design**                        | Rate limit, fresh PostgreSQL authorization, fail-safe auth, explicit trust boundaries, derived expiry state, no shared signing secret in client | Threat/abuse case review dan tests untuk replay freshness, stale authorization, DB failure, serta rate-limit failure       |
+| **A07 Authentication Failures**                | Better Auth, signup disabled, password minimum 12, safe login error, secure session cookie, auth rate limiting                                  | Invalid-login tests, account-enumeration check, expired-session test, brute-force/rate-limit check                         |
+| **A08 Software or Data Integrity Failures**    | Lockfile integrity, reviewed migrations, Ed25519 signed authorization payload, controlled deployment pipeline, no runtime plugin loading        | Fresh migration/build evidence, signature tamper test, deployment artifact berasal dari reviewed commit                    |
+| **A09 Security Logging and Alerting Failures** | Request ID, structured safe logs, auth/rate-limit/5xx events, no secret logging, production monitoring threshold                                | Log redaction test, sample security events terlihat di Vercel logs, alert/monitor destination dan threshold terdokumentasi |
+| **A10 Mishandling of Exceptional Conditions**  | Central error handler, deterministic error model, timeouts, explicit Redis/PostgreSQL failure policy, no swallowed security failure             | Tests untuk malformed input, timeout, Redis down, DB down, audit failure, signing-key mismatch, dan startup failure        |
 
 Setiap implementation batch harus menyebut kategori OWASP yang disentuh dan meninggalkan verification evidence. Batch global verification meninjau seluruh matriks serta mencatat status `PASS`, `FAIL`, atau `NOT APPLICABLE` dengan alasan.
 
@@ -431,7 +415,7 @@ Startup production harus gagal jelas bila database, auth secret, crypto keys, at
 ### Browser Smoke
 
 - Login dan unauthorized redirect.
-- Create, edit, suspend/activate, extend, purge, dan delete license.
+- Create, edit, suspend/activate, extend, dan delete license.
 - Search/filter/pagination.
 - Audit logs.
 - Logout.

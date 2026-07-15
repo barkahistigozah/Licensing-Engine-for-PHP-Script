@@ -1,5 +1,7 @@
 # LEPS SvelteKit + Elysia Rewrite Implementation Plan
 
+> **Superseded security note (2026-07-14):** `docs/superpowers/specs/2026-07-14-leps-security-remediation-design.md` removes license-record caching and manual purge. Cache-related steps later in this original rewrite plan are retained only as historical batch instructions and are not the current runtime contract.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rewrite LEPS menjadi monolit SvelteKit + Elysia yang aman, responsive, dan dapat dideploy sebagai satu project Vercel tanpa mempertahankan compatibility dengan aplikasi lama.
@@ -29,7 +31,7 @@ Jika plan dan dokumen sumber berbeda, dokumen sumber menang. Perubahan requireme
 - Public signup disabled; password admin minimum 12 karakter.
 - Stored license status hanya `ACTIVE` dan `SUSPENDED`; `EXPIRED` adalah effective status dari `expiresAt`.
 - Telegram bot token disimpan sebagai HMAC-SHA256; Ed25519 private key hanya berada di server.
-- License cache TTL 5 menit; production Redis rate-limit failure menghasilkan `503`.
+- PostgreSQL selalu menentukan authorization license; production Redis rate-limit failure menghasilkan `503`.
 - API JSON memakai `snake_case`; unknown request fields ditolak.
 - OWASP Top 10:2025 menjadi baseline minimum. Setiap batch menyimpan evidence untuk kategori yang disentuh.
 - UI utama berbahasa Indonesia; stable API status/error codes tetap berbahasa teknis.
@@ -44,7 +46,7 @@ Jika plan dan dokumen sumber berbeda, dokumen sumber menang. Perubahan requireme
 Current `dev` worktree memiliki perubahan pengguna pada `app/api/v1/license/verify/route.ts` dan `package.json`. Implementation tidak boleh dimulai langsung di worktree tersebut.
 
 - [ ] Gunakan `superpowers:using-git-worktrees` saat execution dimulai.
-- [ ] Buat branch `codex/leps-svelte-rewrite` dari commit dokumentasi terakhir.
+- [ ] Buat branch `dev/leps-svelte-rewrite` dari commit dokumentasi terakhir.
 - [ ] Pastikan worktree baru bersih sebelum Batch 1.
 
 ```powershell
@@ -56,52 +58,52 @@ Expected: worktree execution tidak memuat perubahan uncommitted milik user.
 
 ## Batch Summary
 
-| Batch | Deliverable | Dependency |
-|---|---|---|
-| 1 | SvelteKit/Elysia foundation yang buildable | None |
-| 2 | Prisma baseline, crypto, Better Auth, dan session guard | Batch 1 |
-| 3 | Public license verification API | Batch 2 |
-| 4 | Authenticated admin API | Batch 3 |
-| 5 | Soft Brutal public web dan centered login | Batch 2, 4 |
-| 6 | Responsive dashboard workspace | Batch 4, 5 |
-| 7 | Global verification, cleanup, docs, dan Vercel readiness | Batch 1–6 |
+| Batch | Deliverable                                              | Dependency |
+| ----- | -------------------------------------------------------- | ---------- |
+| 1     | SvelteKit/Elysia foundation yang buildable               | None       |
+| 2     | Prisma baseline, crypto, Better Auth, dan session guard  | Batch 1    |
+| 3     | Public license verification API                          | Batch 2    |
+| 4     | Authenticated admin API                                  | Batch 3    |
+| 5     | Soft Brutal public web dan centered login                | Batch 2, 4 |
+| 6     | Responsive dashboard workspace                           | Batch 4, 5 |
+| 7     | Global verification, cleanup, docs, dan Vercel readiness | Batch 1–6  |
 
 ## Target File Map
 
-| Path | Responsibility |
-|---|---|
-| `src/lib/api/app.ts` | Compose one `/api`-prefixed Elysia application |
-| `src/lib/api/auth.ts` | Better Auth HTTP handler only |
-| `src/lib/api/health.ts` | Safe dependency readiness response |
-| `src/lib/api/verify.ts` | Public verification HTTP schema/headers |
-| `src/lib/api/admin.ts` | Authenticated admin HTTP routes |
-| `src/lib/server/env.ts` | Validate server configuration |
-| `src/lib/server/prisma.ts` | One Prisma client singleton |
-| `src/lib/server/auth.ts` | Better Auth config and session lookup |
-| `src/lib/server/crypto.ts` | HMAC, fingerprint, payload, Ed25519 primitives |
-| `src/lib/server/license.ts` | Normalization and deterministic evaluation |
-| `src/lib/server/redis.ts` | Upstash REST cache/rate-limit states |
-| `src/lib/server/verify.ts` | Framework-independent verification orchestration |
-| `src/lib/server/admin.ts` | Admin query/mutation helpers and safe serializers |
-| `src/lib/eden.ts` | Direct server and same-origin browser Eden clients |
-| `src/routes/**` | SvelteKit pages, loads, guard, and catch-all API bridge |
-| `src/lib/components/**` | Minimum reusable Soft Brutal UI behavior |
-| `tests/domain/**` | Pure logic and failure-mode tests |
-| `tests/api/**` | Elysia/service contract tests |
-| `tests/smoke/**` | Authenticated and unauthenticated Playwright flows |
+| Path                        | Responsibility                                          |
+| --------------------------- | ------------------------------------------------------- |
+| `src/lib/api/app.ts`        | Compose one`/api`-prefixed Elysia application           |
+| `src/lib/api/auth.ts`       | Better Auth HTTP handler only                           |
+| `src/lib/api/health.ts`     | Safe dependency readiness response                      |
+| `src/lib/api/verify.ts`     | Public verification HTTP schema/headers                 |
+| `src/lib/api/admin.ts`      | Authenticated admin HTTP routes                         |
+| `src/lib/server/env.ts`     | Validate server configuration                           |
+| `src/lib/server/prisma.ts`  | One Prisma client singleton                             |
+| `src/lib/server/auth.ts`    | Better Auth config and session lookup                   |
+| `src/lib/server/crypto.ts`  | HMAC, fingerprint, payload, Ed25519 primitives          |
+| `src/lib/server/license.ts` | Normalization and deterministic evaluation              |
+| `src/lib/server/redis.ts`   | Upstash REST cache/rate-limit states                    |
+| `src/lib/server/verify.ts`  | Framework-independent verification orchestration        |
+| `src/lib/server/admin.ts`   | Admin query/mutation helpers and safe serializers       |
+| `src/lib/eden.ts`           | Direct server and same-origin browser Eden clients      |
+| `src/routes/**`             | SvelteKit pages, loads, guard, and catch-all API bridge |
+| `src/lib/components/**`     | Minimum reusable Soft Brutal UI behavior                |
+| `tests/domain/**`           | Pure logic and failure-mode tests                       |
+| `tests/api/**`              | Elysia/service contract tests                           |
+| `tests/smoke/**`            | Authenticated and unauthenticated Playwright flows      |
 
 ## Requirement Coverage
 
-| Requirement group | Batch |
-|---|---|
-| PRD public/auth | 2, 5 |
-| PRD overview/license/audit | 4, 6 |
-| PRD verification/signature | 3 |
-| Technical runtime/deployment | 1, 7 |
-| Technical data/Redis/crypto | 2, 3, 4 |
-| UI/UX public/login/dashboard | 5, 6 |
-| Responsive/accessibility | 5, 6, 7 |
-| OWASP A01–A10 | Per batch, globally closed in 7 |
+| Requirement group            | Batch                           |
+| ---------------------------- | ------------------------------- |
+| PRD public/auth              | 2, 5                            |
+| PRD overview/license/audit   | 4, 6                            |
+| PRD verification/signature   | 3                               |
+| Technical runtime/deployment | 1, 7                            |
+| Technical data/Redis/crypto  | 2, 3, 4                         |
+| UI/UX public/login/dashboard | 5, 6                            |
+| Responsive/accessibility     | 5, 6, 7                         |
+| OWASP A01–A10                | Per batch, globally closed in 7 |
 
 ---
 
@@ -145,6 +147,7 @@ Menghasilkan skeleton SvelteKit + Elysia yang dapat di-install, typecheck, test,
 ### Task 1.1: Pin Toolchain dan SvelteKit Configuration
 
 **Files:**
+
 - Modify: `package.json`
 - Create: `svelte.config.js`
 - Create: `vite.config.ts`
@@ -153,6 +156,7 @@ Menghasilkan skeleton SvelteKit + Elysia yang dapat di-install, typecheck, test,
 - Create: `src/app.d.ts`
 
 **Interfaces:**
+
 - Produces scripts `dev`, `build`, `check`, `format:check`, `test`, dan database scripts.
 - Produces `$lib/*` alias yang dipakai semua batch berikutnya.
 
@@ -289,8 +293,7 @@ export {}
 
 - [ ] **Step 4: Run config checks**
 
-Run: `bunx svelte-kit sync && bun run check`  
-Expected: command exits 0 with the minimal `src/app.d.ts`; no source route is required for this configuration check.
+Run: `bunx svelte-kit sync && bun run check`Expected: command exits 0 with the minimal `src/app.d.ts`; no source route is required for this configuration check.
 
 - [ ] **Step 5: Commit**
 
@@ -302,6 +305,7 @@ git commit -m "build: initialize SvelteKit toolchain"
 ### Task 1.2: Bootstrap Elysia Through SvelteKit
 
 **Files:**
+
 - Create: `src/lib/api/app.ts`
 - Create: `src/routes/api/[...slugs]/+server.ts`
 - Create: `src/routes/+layout.svelte`
@@ -309,6 +313,7 @@ git commit -m "build: initialize SvelteKit toolchain"
 - Create: `tests/api/bootstrap.test.ts`
 
 **Interfaces:**
+
 - Produces `app: Elysia` and `App = typeof app`.
 - Produces SvelteKit `fallback` handler for all `/api/*` methods.
 
@@ -332,8 +337,7 @@ test('mounts Elysia under /api', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/api/bootstrap.test.ts`  
-Expected: FAIL because `$lib/api/app` does not exist.
+Run: `bun test tests/api/bootstrap.test.ts`Expected: FAIL because `$lib/api/app` does not exist.
 
 - [ ] **Step 3: Implement minimal app and route bridge**
 
@@ -448,6 +452,7 @@ Menghasilkan database baseline baru, secret handling, Better Auth, admin seed, d
 ### Task 2.1: Replace Prisma Baseline
 
 **Files:**
+
 - Modify: `prisma/schema.prisma`
 - Replace: `prisma/migrations/*`
 - Modify: `prisma/seed.ts`
@@ -455,6 +460,7 @@ Menghasilkan database baseline baru, secret handling, Better Auth, admin seed, d
 - Test: `tests/database/schema.test.ts`
 
 **Interfaces:**
+
 - Produces Prisma models `License` and `VerificationLog` used by Batches 3–6.
 - Produces singleton `prisma`.
 
@@ -476,8 +482,7 @@ test('schema stores no plaintext Telegram token and preserves audit on delete', 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/database/schema.test.ts`  
-Expected: FAIL against legacy schema.
+Run: `bun test tests/database/schema.test.ts`Expected: FAIL against legacy schema.
 
 - [ ] **Step 3: Replace schema with approved data model**
 
@@ -625,6 +630,7 @@ git commit -m "feat: reset Prisma schema for secure licensing"
 ### Task 2.2: Environment dan Cryptographic Primitives
 
 **Files:**
+
 - Create: `src/lib/server/env.ts`
 - Create: `src/lib/server/crypto.ts`
 - Create: `tests/domain/env.test.ts`
@@ -632,6 +638,7 @@ git commit -m "feat: reset Prisma schema for secure licensing"
 - Modify: `.env.example`
 
 **Interfaces:**
+
 - Produces `readServerEnv()`.
 - Produces `hashTelegramToken()`, `fingerprintLicenseKey()`, `safeHashEqual()`, `buildSignedPayload()`, dan `signPayload()`.
 
@@ -643,7 +650,9 @@ import { expect, test } from 'bun:test'
 import { readServerEnv } from '$lib/server/env'
 
 test('rejects missing production secrets', () => {
-  expect(() => readServerEnv({ NODE_ENV: 'production' })).toThrow('DATABASE_URL')
+  expect(() => readServerEnv({ NODE_ENV: 'production' })).toThrow(
+    'DATABASE_URL'
+  )
 })
 ```
 
@@ -651,44 +660,66 @@ test('rejects missing production secrets', () => {
 // tests/domain/crypto.test.ts
 import { expect, test } from 'bun:test'
 import { generateKeyPairSync, verify } from 'node:crypto'
-import { buildSignedPayload, hashTelegramToken, signPayload } from '$lib/server/crypto'
+import {
+  buildSignedPayload,
+  hashTelegramToken,
+  signPayload
+} from '$lib/server/crypto'
 
 test('hash is deterministic and purpose separated', () => {
-  expect(hashTelegramToken('secret', 'token')).toBe(hashTelegramToken('secret', 'token'))
+  expect(hashTelegramToken('secret', 'token')).toBe(
+    hashTelegramToken('secret', 'token')
+  )
 })
 
 test('Ed25519 signs exact payload bytes', () => {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519')
   const payload = buildSignedPayload({
-    version: 1, status: 'VALID', license_key: 'lic_1234567890abcdef12345678',
-    domain: 'example.com', request_path: '/', expires_at: '2027-01-01T00:00:00.000Z',
+    version: 1,
+    status: 'VALID',
+    license_key: 'lic_1234567890abcdef12345678',
+    domain: 'example.com',
+    request_path: '/',
+    expires_at: '2027-01-01T00:00:00.000Z',
     issued_at: '2026-07-11T00:00:00.000Z'
   })
-  const signature = signPayload(privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64'), payload.bytes)
-  expect(verify(null, payload.bytes, publicKey, Buffer.from(signature, 'base64url'))).toBe(true)
+  const signature = signPayload(
+    privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64'),
+    payload.bytes
+  )
+  expect(
+    verify(null, payload.bytes, publicKey, Buffer.from(signature, 'base64url'))
+  ).toBe(true)
 })
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `bun test tests/domain/env.test.ts tests/domain/crypto.test.ts`  
-Expected: FAIL because modules do not exist.
+Run: `bun test tests/domain/env.test.ts tests/domain/crypto.test.ts`Expected: FAIL because modules do not exist.
 
 - [ ] **Step 3: Implement minimal safe primitives**
 
 ```ts
 // src/lib/server/crypto.ts — required public surface
-import { createHmac, createPrivateKey, sign, timingSafeEqual } from 'node:crypto'
+import {
+  createHmac,
+  createPrivateKey,
+  sign,
+  timingSafeEqual
+} from 'node:crypto'
 
 const hmac = (secret: string, purpose: string, value: string) =>
-  createHmac('sha256', secret).update(`${purpose}${value}`, 'utf8').digest('base64url')
+  createHmac('sha256', secret)
+    .update(`${purpose}${value}`, 'utf8')
+    .digest('base64url')
 
 export const hashTelegramToken = (secret: string, token: string) =>
   hmac(secret, 'telegram-token:v1:', token)
 
 export const fingerprintLicenseKey = (secret: string, key: string) =>
   Buffer.from(hmac(secret, 'license-key-fingerprint:v1:', key), 'base64url')
-    .subarray(0, 16).toString('base64url')
+    .subarray(0, 16)
+    .toString('base64url')
 
 export const safeHashEqual = (left: string, right: string) => {
   const a = Buffer.from(left, 'base64url')
@@ -702,7 +733,11 @@ export function buildSignedPayload(value: Record<string, string | number>) {
 }
 
 export function signPayload(privateKeyBase64: string, payload: Uint8Array) {
-  const key = createPrivateKey({ key: Buffer.from(privateKeyBase64, 'base64'), format: 'der', type: 'pkcs8' })
+  const key = createPrivateKey({
+    key: Buffer.from(privateKeyBase64, 'base64'),
+    format: 'der',
+    type: 'pkcs8'
+  })
   return sign(null, payload, key).toString('base64url')
 }
 ```
@@ -722,11 +757,16 @@ export function readServerEnv(source: Source = process.env) {
   const production = source.NODE_ENV === 'production'
   const bindingSecret = requireValue(source, 'LICENSE_BINDING_SECRET')
   const authSecret = requireValue(source, 'BETTER_AUTH_SECRET')
-  if (bindingSecret.length < 32) throw new Error('LICENSE_BINDING_SECRET must contain at least 32 characters.')
-  if (authSecret.length < 32) throw new Error('BETTER_AUTH_SECRET must contain at least 32 characters.')
+  if (bindingSecret.length < 32)
+    throw new Error(
+      'LICENSE_BINDING_SECRET must contain at least 32 characters.'
+    )
+  if (authSecret.length < 32)
+    throw new Error('BETTER_AUTH_SECRET must contain at least 32 characters.')
   const redisUrl = source.KV_REST_API_URL ?? source.UPSTASH_REDIS_REST_URL
   const redisToken = source.KV_REST_API_TOKEN ?? source.UPSTASH_REDIS_REST_TOKEN
-  if (production && (!redisUrl || !redisToken)) throw new Error('Production Redis configuration is required.')
+  if (production && (!redisUrl || !redisToken))
+    throw new Error('Production Redis configuration is required.')
   return {
     production,
     databaseUrl: requireValue(source, 'DATABASE_URL'),
@@ -760,6 +800,7 @@ git commit -m "feat: add validated secrets and signing primitives"
 ### Task 2.3: Better Auth, Session Guard, dan Admin Seed
 
 **Files:**
+
 - Create: `src/lib/server/auth.ts`
 - Create: `src/lib/api/auth.ts`
 - Modify: `src/lib/api/app.ts`
@@ -770,6 +811,7 @@ git commit -m "feat: add validated secrets and signing primitives"
 - Create: `tests/api/auth.test.ts`
 
 **Interfaces:**
+
 - Produces `auth`, `authApi`, `getAdminSession(headers)`, dan `event.locals.session/user`.
 
 - [ ] **Step 1: Write failing route/guard tests**
@@ -780,7 +822,9 @@ import { expect, test } from 'bun:test'
 import { app } from '$lib/api/app'
 
 test('rejects unsupported auth method', async () => {
-  const response = await app.handle(new Request('http://local/api/auth/session', { method: 'PUT' }))
+  const response = await app.handle(
+    new Request('http://local/api/auth/session', { method: 'PUT' })
+  )
   expect(response.status).toBe(405)
 })
 
@@ -790,18 +834,24 @@ test('dashboard guard contract returns no user for missing cookie', async () => 
 })
 
 test('public email signup stays disabled', async () => {
-  const response = await app.handle(new Request('http://local/api/auth/sign-up/email', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'public@example.com', name: 'Public', password: 'strong-password-123' })
-  }))
+  const response = await app.handle(
+    new Request('http://local/api/auth/sign-up/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: 'public@example.com',
+        name: 'Public',
+        password: 'strong-password-123'
+      })
+    })
+  )
   expect(response.status).toBeGreaterThanOrEqual(400)
 })
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `bun test tests/api/auth.test.ts`  
-Expected: FAIL because auth modules do not exist.
+Run: `bun test tests/api/auth.test.ts`Expected: FAIL because auth modules do not exist.
 
 - [ ] **Step 3: Implement Better Auth and route**
 
@@ -826,7 +876,10 @@ export const auth = betterAuth({
     modelName: 'rateLimit',
     customRules: { '/sign-in/email': { window: 10, max: 3 } }
   },
-  trustedOrigins: [process.env.BETTER_AUTH_URL ?? 'http://localhost:5173', 'http://127.0.0.1:5173']
+  trustedOrigins: [
+    process.env.BETTER_AUTH_URL ?? 'http://localhost:5173',
+    'http://127.0.0.1:5173'
+  ]
 })
 
 export async function getAdminSession(headers: Headers) {
@@ -856,7 +909,10 @@ import type { Handle } from '@sveltejs/kit'
 import { getAdminSession } from '$lib/server/auth'
 
 export const handle: Handle = async ({ event, resolve }) => {
-  if (event.url.pathname.startsWith('/dashboard') || event.url.pathname === '/login') {
+  if (
+    event.url.pathname.startsWith('/dashboard') ||
+    event.url.pathname === '/login'
+  ) {
     const authSession = await getAdminSession(event.request.headers)
     event.locals.session = authSession?.session ?? null
     event.locals.user = authSession?.user ?? null
@@ -889,7 +945,8 @@ Seeder:
 // prisma/seed.ts
 async function main() {
   const password = process.env.ADMIN_PASSWORD
-  if (!password || password.length < 12) throw new Error('ADMIN_PASSWORD must contain at least 12 characters.')
+  if (!password || password.length < 12)
+    throw new Error('ADMIN_PASSWORD must contain at least 12 characters.')
   process.env.LEPS_ALLOW_SIGNUP = 'true'
   const [{ auth }, { prisma }] = await Promise.all([
     import('../src/lib/server/auth'),
@@ -978,10 +1035,12 @@ Menghasilkan `/api/health` dan `/api/v1/license/verify` lengkap dengan validatio
 ### Task 3.1: License Domain Functions
 
 **Files:**
+
 - Create: `src/lib/server/license.ts`
 - Create: `tests/domain/license.test.ts`
 
 **Interfaces:**
+
 - Produces `normalizeDomain`, `normalizePath`, `generateLicenseKey`, `effectiveStatus`, dan `evaluateLicense`.
 
 - [ ] **Step 1: Write failing domain tests**
@@ -989,7 +1048,12 @@ Menghasilkan `/api/health` dan `/api/v1/license/verify` lengkap dengan validatio
 ```ts
 // tests/domain/license.test.ts
 import { expect, test } from 'bun:test'
-import { effectiveStatus, evaluateLicense, normalizeDomain, normalizePath } from '$lib/server/license'
+import {
+  effectiveStatus,
+  evaluateLicense,
+  normalizeDomain,
+  normalizePath
+} from '$lib/server/license'
 
 test('normalizes approved host/path forms', () => {
   expect(normalizeDomain('Example.COM.')).toBe('example.com')
@@ -1002,23 +1066,40 @@ test('rejects scheme and query input', () => {
 })
 
 test('derives expiration without stored EXPIRED state', () => {
-  expect(effectiveStatus({ status: 'ACTIVE', expiresAt: new Date('2026-01-01') }, new Date('2026-01-02'))).toBe('EXPIRED')
+  expect(
+    effectiveStatus(
+      { status: 'ACTIVE', expiresAt: new Date('2026-01-01') },
+      new Date('2026-01-02')
+    )
+  ).toBe('EXPIRED')
 })
 
 test('evaluates suspension before other mismatches', () => {
-  expect(evaluateLicense({
-    status: 'SUSPENDED', expiresAt: new Date('2027-01-01'), allowedDomain: 'example.com',
-    allowedPath: '/', telegramBotTokenHash: 'same', telegramChatId: '1'
-  }, {
-    domain: 'wrong.test', requestPath: '/', telegramBotTokenHash: 'same', telegramChatId: '1'
-  }, new Date('2026-01-01'))).toBe('SUSPENDED')
+  expect(
+    evaluateLicense(
+      {
+        status: 'SUSPENDED',
+        expiresAt: new Date('2027-01-01'),
+        allowedDomain: 'example.com',
+        allowedPath: '/',
+        telegramBotTokenHash: 'same',
+        telegramChatId: '1'
+      },
+      {
+        domain: 'wrong.test',
+        requestPath: '/',
+        telegramBotTokenHash: 'same',
+        telegramChatId: '1'
+      },
+      new Date('2026-01-01')
+    )
+  ).toBe('SUSPENDED')
 })
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/domain/license.test.ts`  
-Expected: FAIL because module does not exist.
+Run: `bun test tests/domain/license.test.ts`Expected: FAIL because module does not exist.
 
 - [ ] **Step 3: Implement exact domain result order**
 
@@ -1026,26 +1107,45 @@ Expected: FAIL because module does not exist.
 // src/lib/server/license.ts — public surface
 export type StoredStatus = 'ACTIVE' | 'SUSPENDED'
 export type EffectiveStatus = StoredStatus | 'EXPIRED'
-export type Evaluation = 'SUCCESS' | 'SUSPENDED' | 'EXPIRED' | 'MISMATCH_DOMAIN' | 'MISMATCH_PATH' | 'MISMATCH_TELEGRAM'
+export type Evaluation =
+  | 'SUCCESS'
+  | 'SUSPENDED'
+  | 'EXPIRED'
+  | 'MISMATCH_DOMAIN'
+  | 'MISMATCH_PATH'
+  | 'MISMATCH_TELEGRAM'
 
 export function normalizeDomain(input: string): string
 export function normalizePath(input: string): string
 export function generateLicenseKey(): string
-export function effectiveStatus(record: { status: StoredStatus; expiresAt: Date }, now?: Date): EffectiveStatus
-export function evaluateLicense(record: {
-  status: StoredStatus; expiresAt: Date; allowedDomain: string; allowedPath: string;
-  telegramBotTokenHash: string; telegramChatId: string
-}, input: {
-  domain: string; requestPath: string; telegramBotTokenHash: string; telegramChatId: string
-}, now?: Date): Evaluation
+export function effectiveStatus(
+  record: { status: StoredStatus; expiresAt: Date },
+  now?: Date
+): EffectiveStatus
+export function evaluateLicense(
+  record: {
+    status: StoredStatus
+    expiresAt: Date
+    allowedDomain: string
+    allowedPath: string
+    telegramBotTokenHash: string
+    telegramChatId: string
+  },
+  input: {
+    domain: string
+    requestPath: string
+    telegramBotTokenHash: string
+    telegramChatId: string
+  },
+  now?: Date
+): Evaluation
 ```
 
 Implementation order: suspended → expired → domain → path → token/chat → success. Domain must reject scheme/path/query/port; path must start `/`, reject query/fragment, and remove trailing slash except root. `generateLicenseKey()` returns `lic_` plus 24 lowercase hex characters from `crypto.randomUUID()`.
 
 - [ ] **Step 4: Run domain tests**
 
-Run: `bun test tests/domain/license.test.ts`  
-Expected: PASS.
+Run: `bun test tests/domain/license.test.ts`Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -1057,10 +1157,12 @@ git commit -m "feat: add deterministic license evaluation"
 ### Task 3.2: Redis Cache dan Rate Limiter
 
 **Files:**
+
 - Create: `src/lib/server/redis.ts`
 - Create: `tests/domain/redis.test.ts`
 
 **Interfaces:**
+
 - Produces discriminated results `CacheRead<T>` dan `RateLimitResult`.
 - Produces `readCache`, `writeCache`, `deleteCache`, `rateLimit`, dan `pingRedis`.
 
@@ -1072,20 +1174,25 @@ import { expect, test } from 'bun:test'
 import { createRedisClient } from '$lib/server/redis'
 
 test('distinguishes cache miss from transport failure', async () => {
-  const miss = createRedisClient({ url: 'https://redis.test', token: 'x', fetcher: async () =>
-    Response.json({ result: null }) })
+  const miss = createRedisClient({
+    url: 'https://redis.test',
+    token: 'x',
+    fetcher: async () => Response.json({ result: null })
+  })
   expect(await miss.readCache('lic:key')).toEqual({ state: 'miss' })
 
-  const down = createRedisClient({ url: 'https://redis.test', token: 'x', fetcher: async () =>
-    new Response('down', { status: 503 }) })
+  const down = createRedisClient({
+    url: 'https://redis.test',
+    token: 'x',
+    fetcher: async () => new Response('down', { status: 503 })
+  })
   expect(await down.readCache('lic:key')).toEqual({ state: 'unavailable' })
 })
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/domain/redis.test.ts`  
-Expected: FAIL because Redis client does not exist.
+Run: `bun test tests/domain/redis.test.ts`Expected: FAIL because Redis client does not exist.
 
 - [ ] **Step 3: Implement one small REST client**
 
@@ -1136,6 +1243,7 @@ git commit -m "feat: add explicit Redis cache and rate limit states"
 ### Task 3.3: Verification Service dan Elysia Route
 
 **Files:**
+
 - Create: `src/lib/server/verify.ts`
 - Create: `src/lib/api/verify.ts`
 - Create: `src/lib/api/health.ts`
@@ -1146,6 +1254,7 @@ git commit -m "feat: add explicit Redis cache and rate limit states"
 - Create: `tests/api/verify.test.ts`
 
 **Interfaces:**
+
 - Produces `verifyLicense(deps, input, context): Promise<VerifyResult>`.
 - Produces `verifyApi` and `healthApi` Elysia plugins.
 - Produces `requestId()`, `apiError()`, and redacted structured logging.
@@ -1158,18 +1267,35 @@ import { expect, test } from 'bun:test'
 import { verifyLicense } from '$lib/server/verify'
 
 test('returns signed VALID result from a matching record', async () => {
-  const result = await verifyLicense({
-    now: () => new Date('2026-07-11T00:00:00.000Z'),
-    rateLimit: async () => ({ state: 'ok', allowed: true, remaining: 59 }),
-    readCache: async () => ({ state: 'miss' }),
-    writeCache: async () => true,
-    findLicense: async () => ({ id: '1', licenseKey: 'lic_1234567890abcdef12345678', allowedDomain: 'example.com', allowedPath: '/', telegramBotTokenHash: 'hash', telegramChatId: '1', status: 'ACTIVE', expiresAt: new Date('2027-01-01') }),
-    writeAudit: async () => undefined,
-    hashToken: () => 'hash',
-    sign: () => 'signature'
-  }, {
-    license_key: 'lic_1234567890abcdef12345678', domain: 'example.com', request_path: '/', telegram_bot_token: 'token', telegram_chat_id: '1'
-  }, { clientIp: '127.0.0.1' })
+  const result = await verifyLicense(
+    {
+      now: () => new Date('2026-07-11T00:00:00.000Z'),
+      rateLimit: async () => ({ state: 'ok', allowed: true, remaining: 59 }),
+      readCache: async () => ({ state: 'miss' }),
+      writeCache: async () => true,
+      findLicense: async () => ({
+        id: '1',
+        licenseKey: 'lic_1234567890abcdef12345678',
+        allowedDomain: 'example.com',
+        allowedPath: '/',
+        telegramBotTokenHash: 'hash',
+        telegramChatId: '1',
+        status: 'ACTIVE',
+        expiresAt: new Date('2027-01-01')
+      }),
+      writeAudit: async () => undefined,
+      hashToken: () => 'hash',
+      sign: () => 'signature'
+    },
+    {
+      license_key: 'lic_1234567890abcdef12345678',
+      domain: 'example.com',
+      request_path: '/',
+      telegram_bot_token: 'token',
+      telegram_chat_id: '1'
+    },
+    { clientIp: '127.0.0.1' }
+  )
 
   expect(result.httpStatus).toBe(200)
   expect(result.body.status).toBe('VALID')
@@ -1178,12 +1304,28 @@ test('returns signed VALID result from a matching record', async () => {
 
 test('records unknown keys without a license id', async () => {
   let auditLicenseId: string | null | undefined
-  const result = await verifyLicense({
-    now: () => new Date(), rateLimit: async () => ({ state: 'ok', allowed: true, remaining: 59 }),
-    readCache: async () => ({ state: 'miss' }), writeCache: async () => true,
-    findLicense: async () => null, hashToken: () => 'hash', sign: () => 'unused',
-    writeAudit: async (entry) => { auditLicenseId = entry.licenseId }
-  }, { license_key: 'lic_1234567890abcdef12345678', domain: 'example.com', request_path: '/', telegram_bot_token: 'token', telegram_chat_id: '1' }, { clientIp: '127.0.0.1' })
+  const result = await verifyLicense(
+    {
+      now: () => new Date(),
+      rateLimit: async () => ({ state: 'ok', allowed: true, remaining: 59 }),
+      readCache: async () => ({ state: 'miss' }),
+      writeCache: async () => true,
+      findLicense: async () => null,
+      hashToken: () => 'hash',
+      sign: () => 'unused',
+      writeAudit: async (entry) => {
+        auditLicenseId = entry.licenseId
+      }
+    },
+    {
+      license_key: 'lic_1234567890abcdef12345678',
+      domain: 'example.com',
+      request_path: '/',
+      telegram_bot_token: 'token',
+      telegram_chat_id: '1'
+    },
+    { clientIp: '127.0.0.1' }
+  )
   expect(result.body.error_code).toBe('ERR_LICENSE_NOT_FOUND')
   expect(auditLicenseId).toBeNull()
 })
@@ -1191,8 +1333,7 @@ test('records unknown keys without a license id', async () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `bun test tests/api/verify.test.ts`  
-Expected: FAIL because verify service does not exist.
+Run: `bun test tests/api/verify.test.ts`Expected: FAIL because verify service does not exist.
 
 - [ ] **Step 3: Implement service result contract**
 
@@ -1228,15 +1369,29 @@ import { expect, test } from 'bun:test'
 import { createHealthApi } from '$lib/api/health'
 
 test('reports ready only when required dependencies are ready', async () => {
-  const api = createHealthApi({ databaseReady: async () => true, redisReady: async () => true, production: true })
+  const api = createHealthApi({
+    databaseReady: async () => true,
+    redisReady: async () => true,
+    production: true
+  })
   const response = await api.handle(new Request('http://local/health'))
   expect(response.status).toBe(200)
-  expect(await response.json()).toEqual({ status: 'READY', database: 'AVAILABLE', redis: 'AVAILABLE' })
+  expect(await response.json()).toEqual({
+    status: 'READY',
+    database: 'AVAILABLE',
+    redis: 'AVAILABLE'
+  })
 })
 
 test('fails closed when production Redis is unavailable', async () => {
-  const api = createHealthApi({ databaseReady: async () => true, redisReady: async () => false, production: true })
-  expect((await api.handle(new Request('http://local/health'))).status).toBe(503)
+  const api = createHealthApi({
+    databaseReady: async () => true,
+    redisReady: async () => false,
+    production: true
+  })
+  expect((await api.handle(new Request('http://local/health'))).status).toBe(
+    503
+  )
 })
 ```
 
@@ -1305,12 +1460,14 @@ Menghasilkan admin stats, paginated license CRUD, extend, purge cache, dan pagin
 ### Task 4.1: Admin Read APIs
 
 **Files:**
+
 - Create: `src/lib/api/admin.ts`
 - Create: `src/lib/server/admin.ts`
 - Modify: `src/lib/api/app.ts`
 - Create: `tests/api/admin-read.test.ts`
 
 **Interfaces:**
+
 - Produces `createAdminApi(deps)` for stats, auth/me, license listing/detail, and audit listing.
 
 - [ ] **Step 1: Write failing auth/pagination tests**
@@ -1327,32 +1484,47 @@ test('denies every admin read without a session', async () => {
 })
 
 test('bounds page size at 100', async () => {
-  const api = createAdminApi({ getAdmin: async () => ({ user: { id: '1' } }) } as never)
-  const response = await api.handle(new Request('http://local/admin/licenses?limit=101'))
+  const api = createAdminApi({
+    getAdmin: async () => ({ user: { id: '1' } })
+  } as never)
+  const response = await api.handle(
+    new Request('http://local/admin/licenses?limit=101')
+  )
   expect(response.status).toBe(400)
 })
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `bun test tests/api/admin-read.test.ts`  
-Expected: FAIL because admin API does not exist.
+Run: `bun test tests/api/admin-read.test.ts`Expected: FAIL because admin API does not exist.
 
 - [ ] **Step 3: Implement shared query/serializer functions**
 
 `src/lib/server/admin.ts` exports:
 
 ```ts
-export const effectiveLicenseStatus = (license: { status: 'ACTIVE' | 'SUSPENDED'; expiresAt: Date }, now?: Date) =>
-  license.status === 'SUSPENDED' ? 'SUSPENDED' : license.expiresAt <= (now ?? new Date()) ? 'EXPIRED' : 'ACTIVE'
+export const effectiveLicenseStatus = (
+  license: { status: 'ACTIVE' | 'SUSPENDED'; expiresAt: Date },
+  now?: Date
+) =>
+  license.status === 'SUSPENDED'
+    ? 'SUSPENDED'
+    : license.expiresAt <= (now ?? new Date())
+      ? 'EXPIRED'
+      : 'ACTIVE'
 
 export function serializeLicense(license: License) {
   const { telegramBotTokenHash: _secret, ...safe } = license
   return {
-    id: safe.id, license_key: safe.licenseKey, allowed_domain: safe.allowedDomain,
-    allowed_path: safe.allowedPath, telegram_chat_id: safe.telegramChatId,
-    has_telegram_bot_token: true, status: effectiveLicenseStatus(license),
-    expires_at: safe.expiresAt.toISOString(), created_at: safe.createdAt.toISOString(),
+    id: safe.id,
+    license_key: safe.licenseKey,
+    allowed_domain: safe.allowedDomain,
+    allowed_path: safe.allowedPath,
+    telegram_chat_id: safe.telegramChatId,
+    has_telegram_bot_token: true,
+    status: effectiveLicenseStatus(license),
+    expires_at: safe.expiresAt.toISOString(),
+    created_at: safe.createdAt.toISOString(),
     updated_at: safe.updatedAt.toISOString()
   }
 }
@@ -1366,7 +1538,12 @@ Each handler begins:
 
 ```ts
 const admin = await deps.getAdmin(request.headers)
-if (!admin) return status(401, { error_code: 'UNAUTHORIZED', message: 'Admin session is required.', request_id })
+if (!admin)
+  return status(401, {
+    error_code: 'UNAUTHORIZED',
+    message: 'Admin session is required.',
+    request_id
+  })
 ```
 
 Then implement `/admin/auth/me`, `/admin/stats`, `/admin/licenses`, `/admin/licenses/:id`, and `/admin/audit-logs` with strict schemas and bounded pagination.
@@ -1383,11 +1560,13 @@ git commit -m "feat: add protected admin read APIs"
 ### Task 4.2: Admin Mutations dan Cache Invalidation
 
 **Files:**
+
 - Modify: `src/lib/api/admin.ts`
 - Modify: `src/lib/server/admin.ts`
 - Create: `tests/api/admin-write.test.ts`
 
 **Interfaces:**
+
 - Adds create, patch, extend, purge, and delete methods to `createAdminApi`.
 - Adds `calculateExtendedExpiry(current: Date, days: number, now?: Date): Date`.
 
@@ -1399,26 +1578,37 @@ import { expect, test } from 'bun:test'
 import { calculateExtendedExpiry, serializeLicense } from '$lib/server/admin'
 
 test('serializer never returns token hash', () => {
-  const result = serializeLicense({ telegramBotTokenHash: 'secret-hash', status: 'ACTIVE', expiresAt: new Date('2027-01-01'), createdAt: new Date(), updatedAt: new Date() } as never)
+  const result = serializeLicense({
+    telegramBotTokenHash: 'secret-hash',
+    status: 'ACTIVE',
+    expiresAt: new Date('2027-01-01'),
+    createdAt: new Date(),
+    updatedAt: new Date()
+  } as never)
   expect(JSON.stringify(result)).not.toContain('secret-hash')
 })
 
 test('extend starts from now when already expired', () => {
   const now = new Date('2026-07-11T00:00:00Z')
   const expected = new Date('2026-07-25T00:00:00Z')
-  expect(calculateExtendedExpiry(new Date('2026-01-01'), 14, now)).toEqual(expected)
+  expect(calculateExtendedExpiry(new Date('2026-01-01'), 14, now)).toEqual(
+    expected
+  )
 })
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `bun test tests/api/admin-write.test.ts`  
-Expected: FAIL until `calculateExtendedExpiry` and safe serializer are complete.
+Run: `bun test tests/api/admin-write.test.ts`Expected: FAIL until `calculateExtendedExpiry` and safe serializer are complete.
 
 - [ ] **Step 3: Implement mutation rules**
 
 ```ts
-export function calculateExtendedExpiry(current: Date, days: number, now = new Date()) {
+export function calculateExtendedExpiry(
+  current: Date,
+  days: number,
+  now = new Date()
+) {
   const next = new Date(current > now ? current : now)
   next.setUTCDate(next.getUTCDate() + days)
   return next
@@ -1505,6 +1695,7 @@ Mengimplementasikan visual foundation, Product Story public page, dan Centered C
 ### Task 5.1: Global Tokens dan UI Primitives
 
 **Files:**
+
 - Create: `src/app.css`
 - Modify: `src/routes/+layout.svelte`
 - Create: `src/lib/components/ui/Button.svelte`
@@ -1516,6 +1707,7 @@ Mengimplementasikan visual foundation, Product Story public page, dan Centered C
 - Create: `playwright.config.ts`
 
 **Interfaces:**
+
 - Produces shared CSS custom properties and form primitives used by login/dashboard.
 
 - [ ] **Step 1: Write failing browser accessibility shell test**
@@ -1539,7 +1731,11 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: 'tests/smoke',
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure' },
-  webServer: { command: 'bun run build && bun run preview --host 127.0.0.1', port: 4173, reuseExistingServer: false }
+  webServer: {
+    command: 'bun run build && bun run preview --host 127.0.0.1',
+    port: 4173,
+    reuseExistingServer: false
+  }
 })
 ```
 
@@ -1567,15 +1763,40 @@ Expected: FAIL because bootstrap page has no focusable navigation/action.
   --border: 2px solid var(--ink);
   --shadow-sm: 3px 3px 0 var(--green);
   --shadow-md: 6px 6px 0 var(--green);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   color: var(--ink);
   background: var(--paper);
 }
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: var(--paper); }
-button, input, select { font: inherit; }
-:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--paper);
+}
+button,
+input,
+select {
+  font: inherit;
+}
+:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
 ```
 
 `Button` renders a native `<button>` or `<a>` based on `href`, keeps visible text, minimum 44 px height, border/shadow, and disabled/busy states. `TextField` renders visible label, input, optional hint/error with `aria-describedby`. `Card` is a semantic wrapper. `InlineAlert` uses `role="alert"` only for active errors.
@@ -1590,11 +1811,11 @@ Replace the Batch 1 bootstrap body with `<main><h1>LEPS rewrite bootstrap</h1><a
   import '../app.css'
   let { children } = $props()
 </script>
+
 {@render children()}
 ```
 
-Run: `bun run check && bunx playwright test tests/smoke/accessibility.spec.ts`  
-Expected: typecheck and accessibility shell test pass.
+Run: `bun run check && bunx playwright test tests/smoke/accessibility.spec.ts`Expected: typecheck and accessibility shell test pass.
 
 - [ ] **Step 5: Commit**
 
@@ -1606,11 +1827,13 @@ git commit -m "feat: add Soft Brutal UI foundation"
 ### Task 5.2: Product Story Public Page
 
 **Files:**
+
 - Replace: `src/routes/+page.svelte`
 - Create: `src/routes/+page.ts`
 - Create: `tests/smoke/public.spec.ts`
 
 **Interfaces:**
+
 - Produces static `/` with anchor sections `how-it-works`, `features`, and `security`.
 
 - [ ] **Step 1: Write failing content and responsive tests**
@@ -1623,9 +1846,17 @@ for (const width of [360, 768, 1024, 1440]) {
   test(`public Product Story works at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Kirim kode Anda')
-    await expect(page.getByRole('link', { name: 'Login admin' })).toHaveAttribute('href', '/login')
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      'Kirim kode Anda'
+    )
+    await expect(
+      page.getByRole('link', { name: 'Login admin' })
+    ).toHaveAttribute('href', '/login')
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth
+    )
     expect(overflow).toBe(false)
   })
 }
@@ -1633,34 +1864,66 @@ for (const width of [360, 768, 1024, 1440]) {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bunx playwright test tests/smoke/public.spec.ts`  
-Expected: FAIL against bootstrap content.
+Run: `bunx playwright test tests/smoke/public.spec.ts`Expected: FAIL against bootstrap content.
 
 - [ ] **Step 3: Implement Product Story structure**
 
 ```svelte
 <svelte:head>
   <title>LEPS — Licensing Engine untuk Script PHP</title>
-  <meta name="description" content="Kelola dan verifikasi lisensi script PHP berdasarkan domain, path, dan Telegram binding." />
+  <meta
+    name="description"
+    content="Kelola dan verifikasi lisensi script PHP berdasarkan domain, path, dan Telegram binding."
+  />
 </svelte:head>
 
 <header class="site-header">
   <a class="wordmark" href="/">LEPS</a>
   <nav aria-label="Navigasi utama">
-    <a href="#how-it-works">Cara kerja</a><a href="#security">Keamanan</a><a class="login" href="/login">Login admin</a>
+    <a href="#how-it-works">Cara kerja</a><a href="#security">Keamanan</a><a
+      class="login"
+      href="/login">Login admin</a
+    >
   </nav>
 </header>
 <main>
   <section class="hero">
     <p class="eyebrow">LICENSING ENGINE UNTUK SCRIPT PHP</p>
     <h1>Kirim kode Anda.<br />Tetap pegang kendali.</h1>
-    <p>Kelola lisensi berdasarkan domain, path instalasi, dan Telegram binding melalui satu API yang jelas.</p>
+    <p>
+      Kelola lisensi berdasarkan domain, path instalasi, dan Telegram binding
+      melalui satu API yang jelas.
+    </p>
     <a class="primary" href="#how-it-works">Lihat cara kerjanya</a>
   </section>
-  <section id="how-it-works" aria-labelledby="flow-title"><h2 id="flow-title">Tiga langkah. Tanpa drama.</h2><ol><li>Buat license</li><li>Verifikasi instalasi</li><li>Izinkan atau blokir</li></ol></section>
-  <section id="features" aria-labelledby="features-title"><h2 id="features-title">Kontrol yang memang dibutuhkan</h2><ul><li>Domain dan path binding</li><li>Rate limit dan cache</li><li>Audit setiap percobaan</li><li>Suspend dan expiry</li></ul></section>
-  <section id="security" aria-labelledby="security-title"><h2 id="security-title">Secret tidak diperlakukan sebagai teks biasa.</h2><p>Telegram token disimpan sebagai keyed hash dan response valid ditandatangani dengan Ed25519.</p></section>
-  <section class="final-cta"><h2>Masuk ke control room.</h2><a class="primary" href="/login">Login admin</a></section>
+  <section id="how-it-works" aria-labelledby="flow-title">
+    <h2 id="flow-title">Tiga langkah. Tanpa drama.</h2>
+    <ol>
+      <li>Buat license</li>
+      <li>Verifikasi instalasi</li>
+      <li>Izinkan atau blokir</li>
+    </ol>
+  </section>
+  <section id="features" aria-labelledby="features-title">
+    <h2 id="features-title">Kontrol yang memang dibutuhkan</h2>
+    <ul>
+      <li>Domain dan path binding</li>
+      <li>Rate limit dan cache</li>
+      <li>Audit setiap percobaan</li>
+      <li>Suspend dan expiry</li>
+    </ul>
+  </section>
+  <section id="security" aria-labelledby="security-title">
+    <h2 id="security-title">Secret tidak diperlakukan sebagai teks biasa.</h2>
+    <p>
+      Telegram token disimpan sebagai keyed hash dan response valid
+      ditandatangani dengan Ed25519.
+    </p>
+  </section>
+  <section class="final-cta">
+    <h2>Masuk ke control room.</h2>
+    <a class="primary" href="/login">Login admin</a>
+  </section>
 </main>
 ```
 
@@ -1673,8 +1936,7 @@ Add scoped CSS implementing C1 layout, `clamp()` typography, 2–3 px borders, 8
 export const prerender = true
 ```
 
-Run: `bunx playwright test tests/smoke/public.spec.ts tests/smoke/accessibility.spec.ts`  
-Expected: all tests pass.
+Run: `bunx playwright test tests/smoke/public.spec.ts tests/smoke/accessibility.spec.ts`Expected: all tests pass.
 
 - [ ] **Step 5: Commit**
 
@@ -1686,6 +1948,7 @@ git commit -m "feat: redesign public Product Story page"
 ### Task 5.3: Centered Better Auth Login
 
 **Files:**
+
 - Create: `src/lib/auth-client.ts`
 - Create: `src/routes/login/+page.server.ts`
 - Create: `src/routes/login/+page.svelte`
@@ -1693,6 +1956,7 @@ git commit -m "feat: redesign public Product Story page"
 - Create: `tests/smoke/login.spec.ts`
 
 **Interfaces:**
+
 - Produces `authClient` and login flow to `/dashboard`.
 
 - [ ] **Step 1: Write failing login UI tests**
@@ -1706,15 +1970,16 @@ test('login exposes labeled fields and safe error', async ({ page }) => {
   await page.getByLabel('Email').fill('missing@example.com')
   await page.getByLabel('Password').fill('not-the-password')
   await page.getByRole('button', { name: 'Masuk' }).click()
-  await expect(page.getByRole('alert')).toContainText('Email atau password tidak valid')
+  await expect(page.getByRole('alert')).toContainText(
+    'Email atau password tidak valid'
+  )
   await expect(page.getByRole('alert')).not.toContainText('missing@example.com')
 })
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bunx playwright test tests/smoke/login.spec.ts`  
-Expected: FAIL because `/login` is absent.
+Run: `bunx playwright test tests/smoke/login.spec.ts`Expected: FAIL because `/login` is absent.
 
 - [ ] **Step 3: Implement auth client and server redirect**
 
@@ -1731,7 +1996,10 @@ import { expect, type Page } from '@playwright/test'
 export async function loginAsAdmin(page: Page) {
   const email = process.env.ADMIN_EMAIL
   const password = process.env.ADMIN_PASSWORD
-  if (!email || !password) throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD are required for dashboard smoke tests.')
+  if (!email || !password)
+    throw new Error(
+      'ADMIN_EMAIL and ADMIN_PASSWORD are required for dashboard smoke tests.'
+    )
   await page.goto('/login')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
@@ -1817,6 +2085,7 @@ Mengimplementasikan D1 Sidebar Workspace untuk overview, license management, dan
 ### Task 6.1: Eden Helpers dan Dashboard Shell
 
 **Files:**
+
 - Create: `src/lib/eden.ts`
 - Create: `src/lib/components/AppSidebar.svelte`
 - Create: `src/lib/components/ui/Modal.svelte`
@@ -1825,6 +2094,7 @@ Mengimplementasikan D1 Sidebar Workspace untuk overview, license management, dan
 - Create: `tests/smoke/dashboard-shell.spec.ts`
 
 **Interfaces:**
+
 - Produces `getServerApi(headers)` and `getBrowserApi()`.
 - Produces responsive shell slots for child pages.
 
@@ -1839,7 +2109,9 @@ test('mobile dashboard uses a labeled drawer trigger', async ({ page }) => {
   await loginAsAdmin(page)
   await page.setViewportSize({ width: 360, height: 800 })
   await page.goto('/dashboard')
-  await expect(page.getByRole('button', { name: 'Buka navigasi' })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Buka navigasi' })
+  ).toBeVisible()
 })
 
 test('desktop dashboard exposes text navigation', async ({ page }) => {
@@ -1847,7 +2119,9 @@ test('desktop dashboard exposes text navigation', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/dashboard')
   await expect(page.getByRole('navigation').getByText('Licenses')).toBeVisible()
-  await expect(page.getByRole('navigation').getByText('Audit logs')).toBeVisible()
+  await expect(
+    page.getByRole('navigation').getByText('Audit logs')
+  ).toBeVisible()
 })
 
 test('logout ends the admin session', async ({ page }) => {
@@ -1861,8 +2135,7 @@ test('logout ends the admin session', async ({ page }) => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bunx playwright test tests/smoke/dashboard-shell.spec.ts`  
-Expected: FAIL because shell UI is absent or redirect-only.
+Run: `bunx playwright test tests/smoke/dashboard-shell.spec.ts`Expected: FAIL because shell UI is absent or redirect-only.
 
 - [ ] **Step 3: Implement Eden helpers**
 
@@ -1871,13 +2144,15 @@ Expected: FAIL because shell UI is absent or redirect-only.
 import { treaty } from '@elysia/eden'
 import { app, type App } from '$lib/api/app'
 
-export const getServerApi = (headers: Headers) => treaty(app, {
-  headers: Object.fromEntries(headers.entries())
-}).api
+export const getServerApi = (headers: Headers) =>
+  treaty(app, {
+    headers: Object.fromEntries(headers.entries())
+  }).api
 
-export const getBrowserApi = () => treaty<App>(window.location.origin, {
-  fetch: { credentials: 'include' }
-}).api
+export const getBrowserApi = () =>
+  treaty<App>(window.location.origin, {
+    fetch: { credentials: 'include' }
+  }).api
 ```
 
 - [ ] **Step 4: Implement accessible shell**
@@ -1908,11 +2183,13 @@ git commit -m "feat: add responsive dashboard shell"
 ### Task 6.2: Overview Page
 
 **Files:**
+
 - Create: `src/routes/dashboard/+page.server.ts`
 - Replace: `src/routes/dashboard/+page.svelte`
 - Create: `tests/smoke/dashboard-overview.spec.ts`
 
 **Interfaces:**
+
 - Consumes `getServerApi()` and `/api/admin/stats`.
 - Produces overview metric cards and recent activity.
 
@@ -1926,7 +2203,9 @@ import { loginAsAdmin } from './helpers'
 test('overview shows only approved metrics', async ({ page }) => {
   await loginAsAdmin(page)
   await page.goto('/dashboard')
-  await expect(page.getByRole('heading', { name: 'Ringkasan sistem' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Ringkasan sistem' })
+  ).toBeVisible()
   await expect(page.getByText('License aktif')).toBeVisible()
   await expect(page.getByText('Akan kedaluwarsa')).toBeVisible()
   await expect(page.locator('canvas')).toHaveCount(0)
@@ -1935,8 +2214,7 @@ test('overview shows only approved metrics', async ({ page }) => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bunx playwright test tests/smoke/dashboard-overview.spec.ts`  
-Expected: FAIL because overview is absent.
+Run: `bunx playwright test tests/smoke/dashboard-overview.spec.ts`Expected: FAIL because overview is absent.
 
 - [ ] **Step 3: Implement server load**
 
@@ -1949,7 +2227,8 @@ import type { PageServerLoad } from './$types'
 export const load: PageServerLoad = async ({ request }) => {
   const result = await getServerApi(request.headers).admin.stats.get()
   if (result.error?.status === 401) redirect(303, '/login')
-  if (result.error) error(result.error.status, { message: result.error.value.message })
+  if (result.error)
+    error(result.error.status, { message: result.error.value.message })
   const data = result.data
   return { stats: data }
 }
@@ -1971,12 +2250,14 @@ git commit -m "feat: add dashboard overview"
 ### Task 6.3: License Management Page
 
 **Files:**
+
 - Create: `src/routes/dashboard/licenses/+page.server.ts`
 - Create: `src/routes/dashboard/licenses/+page.svelte`
 - Create: `src/lib/components/LicenseForm.svelte`
 - Create: `tests/smoke/licenses.spec.ts`
 
 **Interfaces:**
+
 - Consumes typed admin license endpoints.
 - Produces search/filter/pagination/create/edit/status/extend/purge/delete flows.
 
@@ -1987,7 +2268,9 @@ git commit -m "feat: add dashboard overview"
 import { expect, test } from '@playwright/test'
 import { loginAsAdmin } from './helpers'
 
-test('admin creates and suspends a license without exposing token', async ({ page }) => {
+test('admin creates and suspends a license without exposing token', async ({
+  page
+}) => {
   await loginAsAdmin(page)
   await page.goto('/dashboard/licenses')
   await page.getByRole('button', { name: 'Buat license' }).click()
@@ -2003,8 +2286,7 @@ test('admin creates and suspends a license without exposing token', async ({ pag
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bunx playwright test tests/smoke/licenses.spec.ts`  
-Expected: FAIL because page does not exist.
+Run: `bunx playwright test tests/smoke/licenses.spec.ts`Expected: FAIL because page does not exist.
 
 - [ ] **Step 3: Implement typed load and form**
 
@@ -2026,11 +2308,13 @@ git commit -m "feat: add responsive license management"
 ### Task 6.4: Audit Logs Page
 
 **Files:**
+
 - Create: `src/routes/dashboard/audit-logs/+page.server.ts`
 - Create: `src/routes/dashboard/audit-logs/+page.svelte`
 - Create: `tests/smoke/audit-logs.spec.ts`
 
 **Interfaces:**
+
 - Consumes typed paginated audit endpoint.
 - Produces status/domain/date filters and paginated semantic table.
 
@@ -2046,15 +2330,16 @@ test('audit filters distinguish no data from no matches', async ({ page }) => {
   await page.goto('/dashboard/audit-logs')
   await page.getByLabel('Domain').fill('does-not-exist.test')
   await page.getByRole('button', { name: 'Terapkan filter' }).click()
-  await expect(page.getByText('Tidak ada log yang cocok dengan filter')).toBeVisible()
+  await expect(
+    page.getByText('Tidak ada log yang cocok dengan filter')
+  ).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reset filter' })).toBeVisible()
 })
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bunx playwright test tests/smoke/audit-logs.spec.ts`  
-Expected: FAIL because page does not exist.
+Run: `bunx playwright test tests/smoke/audit-logs.spec.ts`Expected: FAIL because page does not exist.
 
 - [ ] **Step 3: Implement paginated load and filters**
 
@@ -2129,6 +2414,7 @@ Menghapus legacy Next/React code, menutup seluruh verification matrix, memperbar
 ### Task 7.1: Remove Legacy Stack dan Finalize Operational Docs
 
 **Files:**
+
 - Delete: `app/`
 - Delete: `components/`
 - Delete: `lib/`
@@ -2143,6 +2429,7 @@ Menghapus legacy Next/React code, menutup seluruh verification matrix, memperbar
 - Modify: `README.md`
 
 **Interfaces:**
+
 - Produces one unambiguous SvelteKit application tree.
 
 - [ ] **Step 1: Prove new implementation no longer imports legacy paths**
@@ -2193,10 +2480,12 @@ git commit -m "chore: remove legacy Next.js application"
 ### Task 7.2: Global Automated and OWASP Verification
 
 **Files:**
+
 - Modify tests where a verified global regression exposes a gap.
 - Modify `docs/IMPLEMENTATION_PLAN.md` only to check completed steps and append exact execution evidence.
 
 **Interfaces:**
+
 - Produces release evidence for A01–A10 and full verification matrix.
 
 - [ ] **Step 1: Fresh database verification**
@@ -2254,9 +2543,11 @@ git commit -m "test: complete global security and responsive verification"
 ### Task 7.3: Vercel Preview and Cutover Readiness
 
 **Files:**
+
 - Modify: `README.md` only if preview exposes an operational correction.
 
 **Interfaces:**
+
 - Produces a preview deployment ready for explicit user-approved production promotion.
 
 - [ ] **Step 1: Pull preview environment and build locally**
@@ -2298,6 +2589,15 @@ git commit -m "docs: record Vercel preview verification"
 Promotion to production is a separate explicit user-approved action after this plan is fully verified.
 
 ## Verifikasi Batch 7 / Definition of Done
+
+## Batch 7 Execution Evidence (2026-07-14 UTC)
+
+- [x] Task 7.1 cleanup: legacy `app/`, `components/`, `lib/`, Next/Tailwind configs, dan `components.json` dihapus setelah `rg` membuktikan tidak ada import legacy pada `src`, `tests`, atau `package.json`.
+- [x] Task 7.1 docs: `.gitignore`, `.prettierignore`, `.env.example`, dan `README.md` difinalkan untuk SvelteKit/Elysia; `bun run format:check` lulus.
+- [x] Automated checks: `bun test` lulus (41 test); `bun run check` lulus tanpa error/warning; Playwright lulus (12 smoke test, termasuk 360/768/1024/1440).
+- [x] OWASP review: secret scan hanya menemukan nama field/env pada server/tests; tidak ada unsafe raw SQL/HTML/eval; manifest memakai versi exact. `bun audit` hanya melaporkan satu advisory low pada transitif `cookie <0.7.0`, tanpa high/critical.
+- [ ] Fresh isolated database: tidak dijalankan karena `TEST_DATABASE_URL` tidak tersedia atau tidak menunjuk database `_test`; database development tidak di-reset.
+- [ ] Vercel build/preview: build lokal berhenti pada Windows `EPERM` ketika adapter membuat symlink di `.vercel/output`; `bunx vercel pull --yes --environment=preview` tidak menghasilkan output dan dihentikan setelah menunggu. Deploy preview belum dijalankan karena memerlukan persetujuan eksplisit terpisah.
 
 ```powershell
 bun audit

@@ -1,13 +1,6 @@
 .codegraph/
+.next/
 .svelte-kit/
 .superpowers/
-app/
-components/
-lib/
-docs/
-prisma/
-README.md
-eslint.config.mjs
-next.config.ts
-postcss.config.mjs
-tailwind.config.ts
+test-results/
+playwright-report/
