@@ -22,12 +22,7 @@ LEPS memungkinkan vendor script mengikat lisensi ke:
 
 PostgreSQL menjadi sumber kebenaran untuk setiap keputusan otorisasi. Redis REST digunakan di production untuk rate limiting publik dan readiness check—bukan untuk cache record lisensi. Response verifikasi yang valid ditandatangani dengan Ed25519 agar integritasnya dapat diverifikasi secara lokal oleh PHP client.
 
-Kebutuhan produk, kontrak endpoint, keputusan teknis, dan aturan antarmuka dikelola di:
-
-- [Product requirements](docs/PRD.md)
-- [Functional specification](docs/SPEC.md)
-- [Technical design](docs/TECHNICAL_DESIGN.md)
-- [UI/UX specification](docs/UI_UX.md)
+Spesifikasi internal produk, fungsional, teknis, dan UI dikelola secara lokal dan sengaja tidak disertakan dalam repository ini.
 
 ## Sorotan rewrite
 
@@ -236,12 +231,9 @@ Menghapus lisensi akan mengatur `VerificationLog.licenseId` menjadi `null`; riwa
 - Verifikasi publik bersifat server-to-server dan secara default tidak mengaktifkan CORS browser.
 - Security header, response no-store, pesan error aman, dan request ID terstruktur diterapkan di HTTP boundary.
 
-Matriks kontrol lengkap didokumentasikan di [Technical Design §15](docs/TECHNICAL_DESIGN.md#15-security-controls) dan [SPEC §15](docs/SPEC.md#15-verification-matrix).
-
 ## Struktur project
 
 ```text
-docs/                       Dokumen produk, fungsional, teknis, UI, dan eksekusi
 prisma/
   migrations/               Migrasi PostgreSQL
   schema.prisma             Data model Better Auth, lisensi, dan audit
@@ -415,7 +407,7 @@ Semua endpoint dipasang di bawah `/api`.
 | `GET`                    | `/api/admin/audit-logs`          | Administrator  | Riwayat verifikasi terfilter dan terpaginasi. |
 | Better Auth routes       | `/api/auth/*`                    | Auth contract  | Operasi login, logout, dan session.           |
 
-Lihat [Functional Specification §2](docs/SPEC.md#2-route-matrix) dan [§11](docs/SPEC.md#11-public-verification) untuk schema dan response code yang persis.
+Periksa implementasi route di `src/lib/api/` untuk schema dan response code yang persis.
 
 ## Deployment ke Vercel
 
@@ -459,12 +451,10 @@ Atur `TEST_DATABASE_URL` ke database terpisah yang decoded database name-nya ber
 
 MVP rewrite telah diimplementasikan dan diverifikasi secara lokal pada jalur API, database, domain, route, PHP client, dan browser smoke. Release production tetap membutuhkan credential provider asli, konfirmasi migration, dan smoke preview Vercel yang berhasil di target environment.
 
-Lihat [evidence eksekusi Implementation Plan](docs/IMPLEMENTATION_PLAN.md#batch-7-execution-evidence-2026-07-14-utc) untuk catatan pemeriksaan release-readiness.
-
 ## Kontribusi
 
 1. Fork repository dan buat branch yang fokus.
-2. Jaga agar perubahan selaras dengan PRD, SPEC, dan Technical Design.
+2. Jaga agar perubahan selaras dengan kontrak API dan keamanan yang ada.
 3. Tambahkan regression test relevan yang paling kecil.
 4. Jalankan `bun test`, `bun run check`, `bun run format:check`, dan `git diff --check`.
 5. Buka pull request yang menjelaskan perubahan behavior, dampak keamanan, dan evidence verifikasi.

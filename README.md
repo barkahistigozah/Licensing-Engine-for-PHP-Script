@@ -22,12 +22,7 @@ LEPS lets a script vendor bind a license to:
 
 PostgreSQL is the source of truth for every authorization decision. Redis REST is used in production for public rate limiting and readiness checks—not for license-record caching. A valid verification response is signed with Ed25519 so the PHP client can verify its integrity locally.
 
-The product requirements, endpoint contracts, technical decisions, and interface rules are maintained in:
-
-- [Product requirements](docs/PRD.md)
-- [Functional specification](docs/SPEC.md)
-- [Technical design](docs/TECHNICAL_DESIGN.md)
-- [UI/UX specification](docs/UI_UX.md)
+Internal product, functional, technical, and UI specifications are maintained locally and intentionally excluded from this repository.
 
 ## Rewrite highlights
 
@@ -236,12 +231,9 @@ Deleting a license sets `VerificationLog.licenseId` to `null`; audit history rem
 - Public verification is server-to-server and does not enable browser CORS by default.
 - Security headers, no-store responses, safe error messages, and structured request IDs are applied at HTTP boundaries.
 
-The detailed control matrix is documented in [Technical Design §15](docs/TECHNICAL_DESIGN.md#15-security-controls) and [SPEC §15](docs/SPEC.md#15-verification-matrix).
-
 ## Project structure
 
 ```text
-docs/                       Product, functional, technical, UI, and execution docs
 prisma/
   migrations/               PostgreSQL migrations
   schema.prisma             Better Auth, license, and audit data model
@@ -415,7 +407,7 @@ All endpoints are mounted under `/api`.
 | `GET`                    | `/api/admin/audit-logs`          | Administrator  | Filtered, paginated verification history.     |
 | Better Auth routes       | `/api/auth/*`                    | Auth contract  | Sign-in, sign-out, and session operations.    |
 
-See [Functional Specification §2](docs/SPEC.md#2-route-matrix) and [§11](docs/SPEC.md#11-public-verification) for exact schemas and response codes.
+Review the route implementations under `src/lib/api/` for exact schemas and response codes.
 
 ## Deploying to Vercel
 
@@ -459,12 +451,10 @@ Set `TEST_DATABASE_URL` to a separate database whose decoded database name ends 
 
 The rewrite MVP is implemented and locally verified across API, database, domain, route, PHP-client, and browser-smoke paths. A production release still requires real provider credentials, migration confirmation, and a successful Vercel preview smoke in the target environment.
 
-See [Implementation Plan execution evidence](docs/IMPLEMENTATION_PLAN.md#batch-7-execution-evidence-2026-07-14-utc) for the recorded release-readiness checks.
-
 ## Contributing
 
 1. Fork the repository and create a focused branch.
-2. Keep changes aligned with the PRD, SPEC, and Technical Design.
+2. Keep changes aligned with the existing API and security contracts.
 3. Add the smallest relevant regression test.
 4. Run `bun test`, `bun run check`, `bun run format:check`, and `git diff --check`.
 5. Open a pull request explaining the behavior change, security impact, and verification evidence.
