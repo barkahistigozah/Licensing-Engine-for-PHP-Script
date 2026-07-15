@@ -1,0 +1,6 @@
+.codegraph/
+.next/
+.svelte-kit/
+.superpowers/
+test-results/
+playwright-report/
